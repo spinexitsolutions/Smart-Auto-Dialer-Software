@@ -1,0 +1,167 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="vertical">
+
+    <com.google.android.material.appbar.MaterialToolbar
+        android:id="@+id/toolbar"
+        android:layout_width="match_parent"
+        android:layout_height="?attr/actionBarSize"
+        android:background="@color/brand_primary"
+        android:theme="@style/ThemeOverlay.Material3.Dark.ActionBar"
+        app:navigationIcon="?attr/homeAsUpIndicator"
+        app:title="@string/settings_title"
+        app:titleTextColor="@color/white" />
+
+    <ScrollView
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1">
+
+        <LinearLayout
+            android:layout_width="match_parent"
+            android:layout_height="wrap_content"
+            android:orientation="vertical"
+            android:padding="16dp">
+
+            <!-- Server -->
+            <TextView
+                style="@style/SettingsSectionHeader"
+                android:text="@string/settings_server_section" />
+
+            <TextView
+                android:id="@+id/serverUrlText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:textAppearance="?attr/textAppearanceBodyLarge"
+                android:textIsSelectable="true" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/changeServerButton"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/settings_change_server" />
+
+            <!-- Calls -->
+            <TextView
+                style="@style/SettingsSectionHeader"
+                android:text="@string/settings_calls_section" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/autoReturnSwitch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_auto_return" />
+
+            <TextView
+                style="@style/SettingsHint"
+                android:text="@string/settings_auto_return_hint" />
+
+            <TextView
+                android:id="@+id/overlayStatus"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:textAppearance="?attr/textAppearanceBodyMedium" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/overlayButton"
+                style="@style/Widget.Material3.Button.TonalButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_overlay_button" />
+
+            <!-- Display -->
+            <TextView
+                style="@style/SettingsSectionHeader"
+                android:text="@string/settings_display_section" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/keepScreenOnSwitch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_keep_screen_on" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/pullToRefreshSwitch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_pull_to_refresh" />
+
+            <!-- Recordings -->
+            <TextView
+                style="@style/SettingsSectionHeader"
+                android:text="@string/settings_recording_section" />
+
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/recordingSwitch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_recording_upload" />
+
+            <TextView
+                style="@style/SettingsHint"
+                android:text="@string/settings_recording_hint" />
+
+            <com.google.android.material.textfield.TextInputLayout
+                android:id="@+id/recordingFolderLayout"
+                style="@style/Widget.Material3.TextInputLayout.OutlinedBox"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="12dp"
+                android:hint="@string/settings_recording_folder"
+                app:helperText="@string/settings_recording_folder_helper"
+                app:helperTextEnabled="true">
+
+                <com.google.android.material.textfield.TextInputEditText
+                    android:id="@+id/recordingFolderInput"
+                    android:layout_width="match_parent"
+                    android:layout_height="wrap_content"
+                    android:inputType="textUri"
+                    android:maxLines="1" />
+            </com.google.android.material.textfield.TextInputLayout>
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/presetsButton"
+                style="@style/Widget.Material3.Button.TextButton"
+                android:layout_width="wrap_content"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_recording_presets" />
+
+            <!-- System -->
+            <TextView
+                style="@style/SettingsSectionHeader"
+                android:text="@string/settings_system_section" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/permissionsButton"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_permissions" />
+
+            <com.google.android.material.button.MaterialButton
+                android:id="@+id/batteryButton"
+                style="@style/Widget.Material3.Button.OutlinedButton"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:text="@string/settings_battery" />
+
+            <TextView
+                style="@style/SettingsHint"
+                android:text="@string/settings_battery_hint" />
+
+            <TextView
+                android:id="@+id/versionText"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="24dp"
+                android:gravity="center"
+                android:textAppearance="?attr/textAppearanceBodySmall" />
+        </LinearLayout>
+    </ScrollView>
+</LinearLayout>

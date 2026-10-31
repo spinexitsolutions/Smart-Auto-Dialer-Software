@@ -1,0 +1,13 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Brand colours: change these to white-label the app. -->
+    <color name="brand_primary">#2563EB</color>
+    <color name="brand_primary_dark">#1D4ED8</color>
+    <color name="brand_primary_container">#DBE5FF</color>
+    <color name="brand_on_primary_container">#0B2A6F</color>
+    <color name="brand_secondary">#0EA5E9</color>
+    <color name="ic_launcher_background">#2563EB</color>
+    <color name="white">#FFFFFF</color>
+    <color name="status_ok">#16A34A</color>
+    <color name="status_error">#DC2626</color>
+</resources>
