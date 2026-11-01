@@ -32,8 +32,8 @@ function paintShell(el) {
     <div class="page-head">
       <div><h1>${mgr ? 'Leads' : 'My leads'}</h1><small class="muted" id="countLbl"></small></div>
       <span class="spacer"></span>
-      ${mgr ? '<button class="btn" id="importBtn">⬆ Import CSV</button><button class="btn" id="exportBtn">⬇ Export</button>' : ''}
-      <button class="btn primary" id="addBtn">＋ Add lead</button>
+      ${mgr ? '<button class="btn" id="importBtn"><i class="i i-upload"></i> Import CSV</button><button class="btn" id="exportBtn"><i class="i i-download"></i> Export</button>' : ''}
+      <button class="btn primary" id="addBtn"><i class="i i-plus"></i> Add lead</button>
     </div>
     <div class="card">
       <div class="card-body toolbar" style="border-bottom:1px solid var(--border)">
@@ -73,7 +73,7 @@ async function load(el) {
       <th class="hide-sm">Last result</th><th class="hide-sm">Attempts</th><th>Next callback</th><th></th></tr></thead><tbody>
       ${data.rows.map((l) => `<tr class="clickable" data-id="${l.id}">
         ${mgr ? `<td data-stop><input type="checkbox" data-sel="${l.id}" ${selected.has(l.id) ? 'checked' : ''}></td>` : ''}
-        <td><b>${esc(l.name || '—')}</b>${l.priority > 0 ? ' <span class="badge red">★</span>' : ''}<div class="muted" style="font-size:12px">${esc([l.city, l.source].filter(Boolean).join(' · '))}</div></td>
+        <td><b>${esc(l.name || '—')}</b>${l.priority > 0 ? ' <span class="badge red"><i class="i i-star"></i></span>' : ''}<div class="muted" style="font-size:12px">${esc([l.city, l.source].filter(Boolean).join(' · '))}</div></td>
         <td class="mono nowrap">${esc(l.phone)}</td>
         <td>${statusBadge(l.status)}</td>
         <td class="hide-sm">${esc(l.campaign_name || '—')}</td>
@@ -81,7 +81,7 @@ async function load(el) {
         <td class="hide-sm">${esc(l.last_disposition || '—')}${l.last_called_at ? `<div class="muted" style="font-size:12px">${ago(l.last_called_at)}</div>` : ''}</td>
         <td class="hide-sm">${l.attempts}</td>
         <td class="nowrap">${l.next_call_at ? `<span style="${new Date(l.next_call_at.replace(' ', 'T') + 'Z') < new Date() ? 'color:var(--red);font-weight:600' : ''}">${fmtDate(l.next_call_at)}</span>` : '<span class="faint">—</span>'}</td>
-        <td class="actions" data-stop><button class="btn sm green" data-call="${l.id}" title="Call now">📞</button></td>
+        <td class="actions" data-stop><button class="btn sm green" data-call="${l.id}" title="Call now"><i class="i i-phone"></i></button></td>
       </tr>`).join('')}</tbody></table>`;
   }
   const pages = Math.max(1, Math.ceil(data.total / q.limit));
@@ -121,8 +121,8 @@ function bulkBar(el) {
     <select data-bulk="campaign">${options(state.campaigns.map((c) => [c.id, c.name]), '', { empty: 'Move to campaign…' })}</select>
     <select data-bulk="status">${options(statuses.map((s) => [s, STATUS_LABEL[s] || s]), '', { empty: 'Set status…' })}</select>
     <select data-bulk="priority"><option value="">Priority…</option><option value="0">Normal</option><option value="1">High</option><option value="2">Urgent</option></select>
-    <button class="btn sm" data-bulk-btn="tag">🏷 Tag</button>
-    <button class="btn sm" data-bulk-btn="dnc">⛔ DNC</button>
+    <button class="btn sm" data-bulk-btn="tag"><i class="i i-tag"></i> Tag</button>
+    <button class="btn sm" data-bulk-btn="dnc"><i class="i i-ban"></i> DNC</button>
     ${isAdmin() ? '<button class="btn sm red" data-bulk-btn="delete">Delete</button>' : ''}
     <button class="btn sm ghost" id="clearSel">Clear</button>`;
   let allMatching = false;
@@ -198,7 +198,7 @@ function importModal(done) {
       for (const k of ['campaign_id', 'duplicates', 'assign', 'source']) if (d[k]) fd.append(k, d[k]);
       const r = await api('/leads/import', { method: 'POST', form: fd });
       form.querySelector('#impResult').innerHTML = `<div class="card card-pad" style="background:var(--green-soft)">
-        <b>✓ Imported ${num(r.imported)} of ${num(r.total)} rows.</b> ${r.updated ? `Updated ${r.updated}. ` : ''}Duplicates skipped: ${r.duplicates}. Invalid numbers: ${r.invalid}. On DNC list: ${r.dnc}.
+        <b><i class="i i-check"></i> Imported ${num(r.imported)} of ${num(r.total)} rows.</b> ${r.updated ? `Updated ${r.updated}. ` : ''}Duplicates skipped: ${r.duplicates}. Invalid numbers: ${r.invalid}. On DNC list: ${r.dnc}.
         ${r.errors.length ? `<pre>${esc(r.errors.join('\n'))}</pre>` : ''}</div>`;
       form.querySelector('button[type=submit]').classList.add('hidden');
       done();

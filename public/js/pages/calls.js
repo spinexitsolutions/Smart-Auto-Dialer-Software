@@ -10,7 +10,7 @@ export async function render(el) {
   const mgr = isManager();
   el.innerHTML = html`
     <div class="page-head"><div><h1>${mgr ? 'Call logs' : 'My calls'}</h1><small class="muted" id="cnt"></small></div><span class="spacer"></span>
-      ${mgr ? '<button class="btn" id="exp">⬇ Export CSV</button>' : ''}</div>
+      ${mgr ? '<button class="btn" id="exp"><i class="i i-download"></i> Export CSV</button>' : ''}</div>
     <div class="card">
       <div class="card-body toolbar" style="border-bottom:1px solid var(--border)">
         <input type="date" id="from" value="${q.from}"> <input type="date" id="to" value="${q.to}">
@@ -41,7 +41,7 @@ export async function render(el) {
         <td>${c.connected ? '<span class="badge green">Connected</span>' : c.status === 'failed' ? '<span class="badge red">Failed</span>' : '<span class="badge">No answer</span>'} ${esc(c.disposition || '')}
           ${c.notes ? `<div class="muted" style="font-size:12px;max-width:320px">${esc(c.notes)}</div>` : ''}</td>
         <td class="mono">${dur(c.duration)}</td>
-        <td>${c.has_recording ? `<audio controls preload="none" src="${authUrl(`/calls/${c.id}/recording`)}"></audio> <a href="${authUrl(`/calls/${c.id}/recording?download=1`)}" title="Download">⬇</a>` : '<span class="faint">—</span>'}</td></tr>`).join('')}
+        <td>${c.has_recording ? `<audio controls preload="none" src="${authUrl(`/calls/${c.id}/recording`)}"></audio> <a href="${authUrl(`/calls/${c.id}/recording?download=1`)}" title="Download"><i class="i i-download"></i></a>` : '<span class="faint">—</span>'}</td></tr>`).join('')}
       </tbody></table>` : '<div class="empty">No calls in this period</div>';
     const pages = Math.max(1, Math.ceil(d.total / q.limit));
     el.querySelector('#pager').innerHTML = `Page ${q.page} of ${pages} <button class="btn sm" id="prev" ${q.page <= 1 ? 'disabled' : ''}>‹ Prev</button><button class="btn sm" id="next" ${q.page >= pages ? 'disabled' : ''}>Next ›</button>`;

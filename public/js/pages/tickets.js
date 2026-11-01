@@ -20,7 +20,7 @@ export async function render(el, params = []) {
         <select name="priority">${options(PRIORITY, f.priority, { empty: 'All priorities' })}</select>
       </div>
       <div class="spacer"></div>
-      <button class="btn primary" id="newT">+ New ticket</button>
+      <button class="btn primary" id="newT"><i class="i i-plus"></i> New ticket</button>
     </div>
     <div class="card"><div class="table-wrap"><table>
       <thead><tr><th>#</th><th>Subject</th><th>Customer</th><th>Priority</th><th>Status</th><th class="hide-sm">Assigned</th><th class="hide-sm">Updated</th><th></th></tr></thead>

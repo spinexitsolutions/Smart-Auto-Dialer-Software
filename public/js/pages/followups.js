@@ -17,14 +17,14 @@ export async function render(el) {
     el.innerHTML = html`
       <div class="page-head"><div><h1>Follow-ups & callbacks</h1><small class="muted">Never miss a promised call back</small></div><span class="spacer"></span>
         ${mgr ? `<select id="who" style="width:auto">${options([['me', 'Only mine'], ...state.users.map((u) => [u.id, u.name])], who, { empty: 'All agents' })}</select>` : ''}</div>
-      <div class="tabs">${[['overdue', '🔴 Overdue'], ['today', 'Next 24 hours'], ['upcoming', 'Upcoming'], ['done', '✓ Done']].map(([k, l]) => `<a data-t="${k}" class="${tab === k ? 'active' : ''}">${l}</a>`).join('')}</div>
+      <div class="tabs">${[['overdue', '<i class="i i-alert"></i> Overdue'], ['today', 'Next 24 hours'], ['upcoming', 'Upcoming'], ['done', '<i class="i i-check"></i> Done']].map(([k, l]) => `<a data-t="${k}" class="${tab === k ? 'active' : ''}">${l}</a>`).join('')}</div>
       <div class="card">${rows.length ? `<div class="table-wrap"><table><thead><tr><th>Due</th><th>Customer</th><th>Status</th><th>Note</th>${mgr ? '<th>Agent</th>' : ''}<th></th></tr></thead><tbody>
         ${rows.map((f) => `<tr><td class="nowrap"><b>${fmtDate(f.due_at)}</b><div class="muted" style="font-size:12px">${ago(f.due_at)}</div></td>
           <td><a href="#" data-lead="${f.lead_id}">${esc(f.lead_name || 'Lead')}</a><div class="mono muted" style="font-size:12px">${esc(f.phone)}</div></td>
           <td>${statusBadge(f.lead_status)}</td><td style="max-width:320px">${esc(f.note || '')}</td>${mgr ? `<td>${esc(f.user_name || '')}</td>` : ''}
-          <td class="actions">${f.status === 'pending' ? `<button class="btn sm green" data-call="${f.lead_id}">📞 Call</button>
-            <button class="btn sm" data-snooze="${f.id}">+1h</button><button class="btn sm" data-done="${f.id}">✓</button>` : ''}</td></tr>`).join('')}
-        </tbody></table></div>` : '<div class="empty">Nothing here 🎉</div>'}</div>`;
+          <td class="actions">${f.status === 'pending' ? `<button class="btn sm green" data-call="${f.lead_id}"><i class="i i-phone"></i> Call</button>
+            <button class="btn sm" data-snooze="${f.id}">+1h</button><button class="btn sm" data-done="${f.id}"><i class="i i-check"></i></button>` : ''}</td></tr>`).join('')}
+        </tbody></table></div>` : '<div class="empty">Nothing here</div>'}</div>`;
     el.querySelectorAll('[data-t]').forEach((a) => (a.onclick = () => { tab = a.dataset.t; load(); }));
     const w = el.querySelector('#who'); if (w) w.onchange = () => { who = w.value; load(); };
     el.querySelectorAll('[data-lead]').forEach((a) => (a.onclick = (e) => { e.preventDefault(); openLead(Number(a.dataset.lead), { onChange: load }); }));

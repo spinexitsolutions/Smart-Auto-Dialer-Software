@@ -22,12 +22,12 @@ export async function render(el) {
     el.innerHTML = `
       <div class="page-head"><div><h1>Clients & Licences</h1><small class="muted">Create client accounts, set seats and validity, renew or suspend.</small></div>
         <div class="spacer"></div><input type="search" id="sq" placeholder="Search client" style="max-width:240px" value="${esc(q)}">
-        <button class="btn primary" id="addC">+ New client</button></div>
+        <button class="btn primary" id="addC"><i class="i i-plus"></i> New client</button></div>
       <div class="grid g4 mb">
-        <div class="card stat"><span class="label">Clients</span><span class="value">${num(stats.companies)}</span><span class="sub">${num(stats.active)} active</span><span class="icon">🏢</span></div>
-        <div class="card stat"><span class="label">Expiring in 15 days</span><span class="value" style="color:${stats.expiring ? 'var(--amber)' : 'inherit'}">${num(stats.expiring)}</span><span class="sub">Follow up for renewal</span><span class="icon">⏳</span></div>
-        <div class="card stat"><span class="label">Licensed seats</span><span class="value">${num(stats.seats)}</span><span class="sub">${num(stats.users)} users created</span><span class="icon">🪪</span></div>
-        <div class="card stat"><span class="label">Calls today</span><span class="value">${num(stats.calls_today)}</span><span class="sub">Across all clients</span><span class="icon">📞</span></div>
+        <div class="card stat"><span class="label">Clients</span><span class="value">${num(stats.companies)}</span><span class="sub">${num(stats.active)} active</span><span class="icon"><i class="i i-building"></i></span></div>
+        <div class="card stat"><span class="label">Expiring in 15 days</span><span class="value" style="color:${stats.expiring ? 'var(--amber)' : 'inherit'}">${num(stats.expiring)}</span><span class="sub">Follow up for renewal</span><span class="icon"><i class="i i-alarm"></i></span></div>
+        <div class="card stat"><span class="label">Licensed seats</span><span class="value">${num(stats.seats)}</span><span class="sub">${num(stats.users)} users created</span><span class="icon"><i class="i i-id-card"></i></span></div>
+        <div class="card stat"><span class="label">Calls today</span><span class="value">${num(stats.calls_today)}</span><span class="sub">Across all clients</span><span class="icon"><i class="i i-phone"></i></span></div>
       </div>
       <div class="card"><div class="table-wrap"><table>
         <thead><tr><th>Client</th><th>Plan</th><th>Seats</th><th>Valid till</th><th>Status</th><th class="right">Leads</th><th class="right">Calls (30d)</th><th class="hide-sm">Last active</th><th></th></tr></thead>
@@ -53,9 +53,9 @@ export async function render(el) {
         <button class="btn sm" data-a="edit" data-id="${c.id}">Edit</button>
         <button class="btn sm" data-a="ext30" data-id="${c.id}">+30d</button>
         <button class="btn sm" data-a="ext365" data-id="${c.id}">+1yr</button>
-        <button class="btn sm" data-a="reset" data-id="${c.id}" title="Reset admin password">🔑</button>
+        <button class="btn sm" data-a="reset" data-id="${c.id}" title="Reset admin password"><i class="i i-key"></i></button>
         <button class="btn sm" data-a="toggle" data-id="${c.id}">${c.active ? 'Suspend' : 'Activate'}</button>
-        <button class="btn sm red" data-a="delete" data-id="${c.id}" title="Delete">🗑</button>
+        <button class="btn sm red" data-a="delete" data-id="${c.id}" title="Delete"><i class="i i-trash"></i></button>
       </td></tr>`).join('') || '<tr><td colspan="9" class="empty">No clients yet — click “New client” to sell your first licence.</td></tr>';
     tb.querySelectorAll('[data-a]').forEach((b) => (b.onclick = () => action(b.dataset.a, rows.find((c) => c.id === Number(b.dataset.id)))));
   }
@@ -91,7 +91,7 @@ export async function render(el) {
       onSubmit: async (d) => {
         await post('/super/companies', d);
         modal({
-          title: 'Client created ✅',
+          title: 'Client created',
           body: `<p>Share these login details with your client:</p><pre>URL:      ${esc(location.origin)}\nEmail:    ${esc(d.admin_email)}\nPassword: ${esc(d.admin_password)}</pre>`,
           cancel: 'Close',
         });

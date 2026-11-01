@@ -120,10 +120,10 @@ function tick() {
 function deviceBadge() {
   const a = state.agent || {};
   const s = state.user.settings || {};
-  if (native.available()) return '<span class="badge green">📱 This phone dials via SIM</span>';
-  if (a.hasDevice) return `<span class="badge green" title="${esc(a.device?.model || '')}">📱 Phone app connected${a.device?.sims?.length ? ` · ${a.device.sims.length} SIM` : ''}</span>`;
-  if (s.demo_mode) return '<span class="badge violet">🎬 Demo mode (simulated calls)</span>';
-  return '<span class="badge amber" title="Install the Android app on your phone for automatic SIM dialing">✋ Manual mode</span>';
+  if (native.available()) return '<span class="badge green"><i class="i i-smartphone"></i> This phone dials via SIM</span>';
+  if (a.hasDevice) return `<span class="badge green" title="${esc(a.device?.model || '')}"><i class="i i-smartphone"></i> Phone app connected${a.device?.sims?.length ? ` · ${a.device.sims.length} SIM` : ''}</span>`;
+  if (s.demo_mode) return '<span class="badge violet"><i class="i i-film"></i> Demo mode (simulated calls)</span>';
+  return '<span class="badge amber" title="Install the Android app on your phone for automatic SIM dialing"><i class="i i-hand"></i> Manual mode</span>';
 }
 
 function paint() {
@@ -142,11 +142,11 @@ function paint() {
         ${mine.length ? options(mine.map((c) => [c.id, `${c.name} · ${c.dial_mode}`]), ws.campaignId) : '<option value="">No active campaign assigned</option>'}
       </select>
       ${a.status === 'break'
-        ? '<button class="btn green" id="resumeBtn">▶ End break</button>'
+        ? '<button class="btn green" id="resumeBtn"><i class="i i-play"></i> End break</button>'
         : dialing
-          ? '<button class="btn amber" id="pauseBtn">⏸ Pause dialing</button>'
-          : `<button class="btn primary" id="startBtn" ${!mine.length || !connected || busy ? 'disabled' : ''}>▶ Start dialing</button>`}
-      ${a.status !== 'break' ? `<select id="breakSel" style="width:auto" ${busy ? 'disabled' : ''}><option value="">☕ Take a break…</option>${options(s.break_reasons || ['Break'], '')}</select>` : ''}
+          ? '<button class="btn amber" id="pauseBtn"><i class="i i-pause"></i> Pause dialing</button>'
+          : `<button class="btn primary" id="startBtn" ${!mine.length || !connected || busy ? 'disabled' : ''}><i class="i i-play"></i> Start dialing</button>`}
+      ${a.status !== 'break' ? `<select id="breakSel" style="width:auto" ${busy ? 'disabled' : ''}><option value="">Take a break…</option>${options(s.break_reasons || ['Break'], '')}</select>` : ''}
       <span style="flex:1"></span>
       ${deviceBadge()}
       ${!connected ? '<span class="badge red">Not connected to server</span>' : ''}
@@ -184,12 +184,12 @@ function callPanel(a) {
       ${ws.executor === 'demo' && ws.phase !== 'ended' ? '<span class="badge violet">Demo mode — this call is simulated</span>' : ''}
       ${ws.executor === 'native' && ws.phase !== 'ended' ? '<span class="badge green">Calling from your phone SIM…</span>' : ''}
       ${manual ? `<div class="col" style="width:100%;max-width:360px">
-          <a class="btn primary lg block" href="tel:${esc(ws.call.phone)}">📱 Dial ${esc(ws.call.phone)} on phone</a>
+          <a class="btn primary lg block" href="tel:${esc(ws.call.phone)}"><i class="i i-smartphone"></i> Dial ${esc(ws.call.phone)} on phone</a>
           <small class="muted">Manual mode: place the call from your phone, then mark what happened.</small>
           <div class="row" style="justify-content:center">
-            ${ws.phase !== 'connected' ? '<button class="btn green" data-m="connected">✓ Customer answered</button><button class="btn" data-m="noanswer">✗ Not answered</button>' : ''}
+            ${ws.phase !== 'connected' ? '<button class="btn green" data-m="connected"><i class="i i-check"></i> Customer answered</button><button class="btn" data-m="noanswer"><i class="i i-x"></i> Not answered</button>' : ''}
           </div></div>` : ''}
-      ${ws.phase !== 'ended' ? '<button class="btn red lg" id="hangBtn">⏹ End call</button>' : ''}
+      ${ws.phase !== 'ended' ? '<button class="btn red lg" id="hangBtn"><i class="i i-stop"></i> End call</button>' : ''}
     </div>`;
   }
   if (ws.preview) {
@@ -200,24 +200,24 @@ function callPanel(a) {
       <div class="name">${esc(l.name || 'Unnamed lead')}</div>
       <div class="number">${esc(l.phone)}</div>
       <div class="row">${statusBadge(l.status)}<span class="badge">Attempt ${l.attempts + 1}</span>${l.city ? `<span class="badge">${esc(l.city)}</span>` : ''}</div>
-      <div class="row"><button class="btn green xl" id="pvCall">📞 Call now</button><button class="btn lg" id="pvSkip">Skip ⏭</button></div>
+      <div class="row"><button class="btn green xl" id="pvCall"><i class="i i-phone"></i> Call now</button><button class="btn lg" id="pvSkip">Skip <i class="i i-skip"></i></button></div>
     </div>`;
   }
   if (a.status === 'break') {
-    return `<div class="idle-hero"><div class="big">☕</div><h2>You are on a break</h2><p class="muted">Calls are paused. Click “End break” when you are back.</p></div>`;
+    return `<div class="idle-hero"><div class="big"><i class="i i-coffee"></i></div><h2>You are on a break</h2><p class="muted">Calls are paused. Click “End break” when you are back.</p></div>`;
   }
   if (a.autoDial && a.status === 'available') {
-    return `<div class="idle-hero"><div class="big">⏳</div><h2 id="nextIn">Fetching next lead…</h2><p class="muted">Auto-dialer is on. Pause any time.</p></div>`;
+    return `<div class="idle-hero"><div class="big"><i class="i i-loader"></i></div><h2 id="nextIn">Fetching next lead…</h2><p class="muted">Auto-dialer is on. Pause any time.</p></div>`;
   }
   const s = state.user.settings || {};
   return `<div class="idle-hero">
-      <div class="big">📞</div>
+      <div class="big"><i class="i i-phone"></i></div>
       <h2>Ready when you are</h2>
       <p class="muted" style="max-width:420px">Pick a campaign and press <b>Start dialing</b>. The next lead is dialed automatically after each call${s.auto_dial_delay_sec ? ` (${s.auto_dial_delay_sec}s gap)` : ''}.</p>
       ${s.allow_agent_manual_dial || isManager() ? `<form class="dialpad" id="manualForm" style="width:100%;max-width:380px">
         <input name="phone" placeholder="Or dial a number manually" inputmode="tel" autocomplete="off">
         <button class="btn primary" type="submit">Call</button></form>` : ''}
-      <button class="btn sm ghost" id="addLeadBtn">＋ Add a new lead</button>
+      <button class="btn sm ghost" id="addLeadBtn"><i class="i i-plus"></i> Add a new lead</button>
     </div>`;
 }
 
@@ -238,13 +238,13 @@ function leadCard() {
   const notes = h ? h.activities.filter((x) => x.type === 'note' || x.type === 'whatsapp' || x.type === 'sms').slice(0, 3) : [];
   return `<div class="card">
     <div class="card-head"><h3>Customer details</h3>
-      <button class="btn sm" id="waBtn">💬 WhatsApp</button><button class="btn sm" id="fuBtn">⏰ Follow-up</button><button class="btn sm" id="openLead">Full profile →</button></div>
+      <button class="btn sm" id="waBtn"><i class="i i-message"></i> WhatsApp</button><button class="btn sm" id="fuBtn"><i class="i i-alarm"></i> Follow-up</button><button class="btn sm" id="openLead">Full profile <i class="i i-chevron-right"></i></button></div>
     <div class="card-body"><dl class="kv">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl></div>
     ${past.length || notes.length ? `<div class="card-body" style="border-top:1px solid var(--border)"><h4>History</h4>
       ${past.map((c) => `<div class="row" style="padding:5px 0;font-size:13px"><span class="muted nowrap">${fmtDate(c.started_at)}</span>
         <span class="badge ${c.connected ? 'green' : ''}">${c.connected ? dur(c.duration) : 'No answer'}</span><span>${esc(c.disposition || '')}</span>
         <span class="muted">${esc(c.agent_name || '')}</span>${c.notes ? `<span class="muted">“${esc(c.notes)}”</span>` : ''}</div>`).join('')}
-      ${notes.map((n) => `<div style="padding:5px 0;font-size:13px">📝 ${esc(n.text)} <small class="muted">— ${esc(n.user_name || '')}, ${ago(n.created_at)}</small></div>`).join('')}
+      ${notes.map((n) => `<div style="padding:5px 0;font-size:13px"><i class="i i-note"></i> ${esc(n.text)} <small class="muted">— ${esc(n.user_name || '')}, ${ago(n.created_at)}</small></div>`).join('')}
     </div>` : ''}
   </div>`;
 }
@@ -252,7 +252,7 @@ function leadCard() {
 function scriptCard() {
   const c = ws.campaign || ws.preview?.campaign || state.campaigns.find((x) => x.id === ws.campaignId);
   if (!c?.script) return '';
-  return `<div class="card"><div class="card-head"><h3>📜 Call script</h3><small class="muted">${esc(c.name)}</small></div>
+  return `<div class="card"><div class="card-head"><h3><i class="i i-script"></i> Call script</h3><small class="muted">${esc(c.name)}</small></div>
     <div class="card-body"><div class="script">${fillScript(c.script)}</div></div></div>`;
 }
 
@@ -264,7 +264,7 @@ function dispositionCard() {
   const l = ws.lead || {};
   const def = new Date(Date.now() + 2 * 3600000); def.setMinutes(0, 0, 0);
   return `<form class="card" id="dispForm">
-    <div class="card-head"><h3>🏷️ Call outcome</h3>${ws.phase === 'ended' ? '<span class="wrap-timer" id="wrapTimer"></span>' : '<small class="muted">You can fill this during the call</small>'}</div>
+    <div class="card-head"><h3><i class="i i-tag"></i> Call outcome</h3>${ws.phase === 'ended' ? '<span class="wrap-timer" id="wrapTimer"></span>' : '<small class="muted">You can fill this during the call</small>'}</div>
     <div class="card-body col">
       ${groups.map(([g, label]) => {
         const list = disps.filter((d) => d.category === g);
@@ -282,7 +282,7 @@ function dispositionCard() {
         <label class="check"><input type="checkbox" name="add_dnc"> Add to Do-Not-Call</label>
         <label class="check"><input type="checkbox" name="stop_dialing"> Pause dialing after saving</label>
       </div>
-      <button class="btn primary lg block" type="submit" ${ws.disp ? '' : 'disabled'}>${state.agent?.autoDial ? 'Save & dial next ⏭' : 'Save outcome'}</button>
+      <button class="btn primary lg block" type="submit" ${ws.disp ? '' : 'disabled'}>${state.agent?.autoDial ? 'Save & dial next <i class="i i-skip"></i>' : 'Save outcome'}</button>
     </div>
   </form>`;
 }
@@ -302,11 +302,11 @@ function sideHtml() {
       </div>
     </div>
     <div class="card">
-      <div class="card-head"><h3>⏰ My follow-ups due</h3><a href="#/followups" class="btn sm ghost">All →</a></div>
+      <div class="card-head"><h3><i class="i i-alarm"></i> My follow-ups due</h3><a href="#/followups" class="btn sm ghost">All <i class="i i-chevron-right"></i></a></div>
       ${side.followups.length ? `<div>${side.followups.slice(0, 8).map((f) => `<div class="row between" style="padding:9px 16px;border-bottom:1px solid var(--border)">
         <div style="min-width:0"><b class="ellipsis" style="display:block">${esc(f.lead_name || f.phone)}</b>
         <small class="${new Date(f.due_at.replace(' ', 'T') + 'Z') < new Date() ? '' : 'muted'}" style="${new Date(f.due_at.replace(' ', 'T') + 'Z') < new Date() ? 'color:var(--red)' : ''}">${fmtDate(f.due_at)} · ${ago(f.due_at)}</small>${f.note ? `<div class="muted ellipsis" style="font-size:12px">${esc(f.note)}</div>` : ''}</div>
-        <button class="btn sm green" data-fcall="${f.lead_id}" data-fid="${f.id}">📞</button></div>`).join('')}</div>` : '<div class="empty" style="padding:20px">Nothing due. 🎉</div>'}
+        <button class="btn sm green" data-fcall="${f.lead_id}" data-fid="${f.id}"><i class="i i-phone"></i></button></div>`).join('')}</div>` : '<div class="empty" style="padding:20px">Nothing due.</div>'}
     </div>`;
 }
 

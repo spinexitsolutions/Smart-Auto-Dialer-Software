@@ -100,7 +100,7 @@ async function dispositions(body) {
   const statuses = state.user.settings?.lead_statuses || Object.keys(STATUS_LABEL);
   body.innerHTML = `
   <div class="card">
-    <div class="card-head"><h3>Call dispositions</h3><small class="muted hide-sm">Outcome buttons agents click after each call</small><button class="btn primary sm" id="addD">+ Add</button></div>
+    <div class="card-head"><h3>Call dispositions</h3><small class="muted hide-sm">Outcome buttons agents click after each call</small><button class="btn primary sm" id="addD"><i class="i i-plus"></i> Add</button></div>
     <div class="table-wrap"><table>
       <thead><tr><th>Name</th><th>Type</th><th>Sets lead status</th><th>Success</th><th>Callback</th><th>Auto-retry</th><th>Order</th><th>Active</th><th></th></tr></thead>
       <tbody>${rows.map((d) => `<tr style="${d.active ? '' : 'opacity:.5'}">
@@ -141,7 +141,7 @@ async function templates(body) {
   const rows = await get('/templates');
   body.innerHTML = `
   <div class="card">
-    <div class="card-head"><h3>WhatsApp / SMS templates</h3><button class="btn primary sm" id="addT">+ Add</button></div>
+    <div class="card-head"><h3>WhatsApp / SMS templates</h3><button class="btn primary sm" id="addT"><i class="i i-plus"></i> Add</button></div>
     <div class="table-wrap"><table>
       <thead><tr><th>Name</th><th>Channel</th><th>Message</th><th></th></tr></thead>
       <tbody>${rows.map((t) => `<tr><td><b>${esc(t.name)}</b></td>
@@ -186,7 +186,7 @@ async function dnc(body, q = '') {
     <div class="card span2">
       <div class="card-head"><h3>Do-Not-Call list</h3><span class="badge">${rows.length}${rows.length >= 1000 ? '+' : ''}</span>
         <input type="search" id="dq" placeholder="Search number" value="${esc(q)}" style="max-width:200px">
-        <button class="btn sm" id="dx">⬇ CSV</button></div>
+        <button class="btn sm" id="dx"><i class="i i-download"></i> CSV</button></div>
       <div class="table-wrap" style="max-height:560px"><table>
         <thead><tr><th>Number</th><th>Reason</th><th>Added</th><th></th></tr></thead>
         <tbody>${rows.map((r) => `<tr><td class="mono">${esc(r.phone)}</td><td>${esc(r.reason || '—')}</td><td>${fmtDate(r.created_at)}</td>
@@ -262,7 +262,7 @@ document.getElementById('leadForm').onsubmit = async (e) => {
     </div>
   </div>
   <div class="card">
-    <div class="card-head"><h3>Webhooks</h3><button class="btn primary sm" id="addW">+ Add webhook</button></div>
+    <div class="card-head"><h3>Webhooks</h3><button class="btn primary sm" id="addW"><i class="i i-plus"></i> Add webhook</button></div>
     <div class="table-wrap"><table>
       <thead><tr><th>URL</th><th>Events</th><th>Secret</th><th>Active</th><th></th></tr></thead>
       <tbody>${hooks.map((w) => `<tr><td class="mono" style="word-break:break-all">${esc(w.url)}</td><td><code>${esc(w.events)}</code></td>

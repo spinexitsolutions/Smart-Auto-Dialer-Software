@@ -1,7 +1,8 @@
 // Campaign management: create/edit, start/pause, recycle, stats.
 import { state, get, post, put, del, esc, html, modal, toast, toastErr, options, num, pct, hours, isAdmin, loadRefs, confirmBox } from '../core.js';
 
-const TYPE = { sales: '💰 Sales', support: '🎧 Support', collection: '🧾 Collection', survey: '📋 Survey', other: '📁 Other' };
+const TYPE = { sales: 'Sales', support: 'Support', collection: 'Collection', survey: 'Survey', other: 'Other' };
+const TYPE_ICON = { sales: 'briefcase', support: 'headset', collection: 'receipt', survey: 'clipboard', other: 'folder' };
 const MODE = { preview: 'Preview — agent sees lead, then clicks Call', progressive: 'Progressive — auto-dial next lead after wrap-up', power: 'Power — auto-dial, auto-skip unanswered calls' };
 
 export async function render(el) {
@@ -9,7 +10,7 @@ export async function render(el) {
     const list = await get('/campaigns');
     el.innerHTML = html`
       <div class="page-head"><div><h1>Campaigns</h1><small class="muted">Group leads, assign agents and choose how they are dialed</small></div>
-        <span class="spacer"></span><button class="btn primary" id="newBtn">＋ New campaign</button></div>
+        <span class="spacer"></span><button class="btn primary" id="newBtn"><i class="i i-plus"></i> New campaign</button></div>
       ${list.length ? `<div class="grid g-auto" style="grid-template-columns:repeat(auto-fill,minmax(330px,1fr))">${list.map(card).join('')}</div>`
         : '<div class="card empty">No campaigns yet. Create one, then import leads into it.</div>'}`;
     el.querySelector('#newBtn').onclick = () => edit(null, load);
@@ -38,7 +39,7 @@ function card(c) {
   return `<div class="card">
     <div class="card-head"><h3 class="ellipsis">${esc(c.name)}</h3><span class="badge ${color}">${esc(c.status)}</span></div>
     <div class="card-body col">
-      <div class="row"><span class="badge">${TYPE[c.type] || esc(c.type)}</span><span class="badge primary">${esc(c.dial_mode)}</span><span class="badge">🕘 ${esc(c.call_start)}–${esc(c.call_end)}</span></div>
+      <div class="row"><span class="badge"><i class="i i-${TYPE_ICON[c.type] || 'folder'}"></i> ${TYPE[c.type] || esc(c.type)}</span><span class="badge primary">${esc(c.dial_mode)}</span><span class="badge"><i class="i i-clock"></i> ${esc(c.call_start)}–${esc(c.call_end)}</span></div>
       ${c.description ? `<small class="muted">${esc(c.description)}</small>` : ''}
       <div><div class="row between"><small class="muted">${num(s.closed)} of ${num(s.total)} leads closed</small><small><b>${done}%</b></small></div>
         <div class="target-bar mt-s"><span style="width:${done}%"></span></div></div>
@@ -48,12 +49,12 @@ function card(c) {
         <div><b>${pct(s.connected, s.calls)}%</b><br><small class="muted">Connect</small></div>
         <div><b style="color:var(--green)">${num(s.converted)}</b><br><small class="muted">Converted</small></div>
       </div>
-      <small class="muted">👥 ${agents.length ? esc(agents.map((a) => a.name).join(', ')) : 'No agents assigned — only managers can dial'} · talk ${hours(s.talk_sec)}</small>
+      <small class="muted"><i class="i i-users"></i> ${agents.length ? esc(agents.map((a) => a.name).join(', ')) : 'No agents assigned — only managers can dial'} · talk ${hours(s.talk_sec)}</small>
       <div class="row">
-        ${c.status === 'active' ? `<button class="btn sm" data-status="paused" data-id="${c.id}">⏸ Pause</button>` : `<button class="btn sm green" data-status="active" data-id="${c.id}">▶ Activate</button>`}
-        <button class="btn sm" data-edit="${c.id}">✏️ Edit</button>
-        <button class="btn sm" data-recycle="${c.id}">♻ Recycle</button>
-        <a class="btn sm ghost" href="#/leads" onclick="sessionStorage.setItem('leadCampaign','${c.id}')">Leads →</a>
+        ${c.status === 'active' ? `<button class="btn sm" data-status="paused" data-id="${c.id}"><i class="i i-pause"></i> Pause</button>` : `<button class="btn sm green" data-status="active" data-id="${c.id}"><i class="i i-play"></i> Activate</button>`}
+        <button class="btn sm" data-edit="${c.id}"><i class="i i-edit"></i> Edit</button>
+        <button class="btn sm" data-recycle="${c.id}"><i class="i i-refresh"></i> Recycle</button>
+        <a class="btn sm ghost" href="#/leads" onclick="sessionStorage.setItem('leadCampaign','${c.id}')">Leads <i class="i i-chevron-right"></i></a>
         ${isAdmin() ? `<button class="btn sm ghost" data-del="${c.id}" style="margin-left:auto;color:var(--red)">Delete</button>` : ''}
       </div>
     </div></div>`;

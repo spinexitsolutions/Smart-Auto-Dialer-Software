@@ -99,7 +99,7 @@ export async function render(el) {
         <button class="btn sm" data-r="0">Today</button><button class="btn sm" data-r="6">7 days</button><button class="btn sm" data-r="29">30 days</button>
       </div>
       <div class="spacer"></div>
-      <button class="btn" id="exp">⬇ Export CSV</button>
+      <button class="btn" id="exp"><i class="i i-download"></i> Export CSV</button>
     </div>
     <div class="tabs" id="rt">${TABS.map(([k, l]) => `<a data-t="${k}" class="${f.tab === k ? 'active' : ''}">${esc(l)}</a>`).join('')}</div>
     <div class="card" id="rb"><div class="empty">Loading…</div></div>`;

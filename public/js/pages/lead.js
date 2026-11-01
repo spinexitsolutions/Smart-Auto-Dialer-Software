@@ -4,7 +4,7 @@ import {
   isManager, loadRefs, localInput, openWhatsApp, openSms, confirmBox, STATUS_LABEL,
 } from '../core.js';
 
-const ICON = { call: '📞', disposition: '🏷️', note: '📝', status: '🔁', followup: '⏰', created: '✨', assign: '👤', whatsapp: '💬', sms: '✉️', email: '📧', ticket: '🎫', meeting: '🤝' };
+const ICON = { call: '<i class="i i-phone"></i>', disposition: '<i class="i i-tag"></i>', note: '<i class="i i-note"></i>', status: '<i class="i i-refresh"></i>', followup: '<i class="i i-alarm"></i>', created: '<i class="i i-sparkles"></i>', assign: '<i class="i i-user"></i>', whatsapp: '<i class="i i-message"></i>', sms: '<i class="i i-mail"></i>', email: '<i class="i i-mail"></i>', ticket: '<i class="i i-ticket"></i>', meeting: '<i class="i i-calendar"></i>' };
 
 export async function openLead(id, { onChange } = {}) {
   await loadRefs();
@@ -35,18 +35,18 @@ export async function openLead(id, { onChange } = {}) {
           <div class="row muted" style="margin-top:4px">${esc(l.phone)} ${statusBadge(l.status)} ${l.dnc ? '<span class="badge red">DNC</span>' : ''}
             ${l.campaign ? `<span class="badge primary">${esc(l.campaign.name)}</span>` : ''}</div>
         </div>
-        <button class="btn green" data-a="call" ${canCall ? '' : 'disabled'} title="${l.dnc ? 'Number is on DNC list' : 'Call with dialer'}">📞 Call</button>
-        <button class="btn ghost icon" data-a="close">✕</button>
+        <button class="btn green" data-a="call" ${canCall ? '' : 'disabled'} title="${l.dnc ? 'Number is on DNC list' : 'Call with dialer'}"><i class="i i-phone"></i> Call</button>
+        <button class="btn ghost icon" data-a="close"><i class="i i-x"></i></button>
       </div>
       <div class="drawer-body col gap-lg">
-        ${l.duplicates.length ? `<div class="badge amber" style="white-space:normal;padding:8px 12px">⚠ Same number exists in ${l.duplicates.length} other lead(s): ${l.duplicates.map((d) => `#${d.id} ${esc(d.name || '')}`).join(', ')}</div>` : ''}
+        ${l.duplicates.length ? `<div class="badge amber" style="white-space:normal;padding:8px 12px"><i class="i i-alert"></i> Same number exists in ${l.duplicates.length} other lead(s): ${l.duplicates.map((d) => `#${d.id} ${esc(d.name || '')}`).join(', ')}</div>` : ''}
         <div class="row">
-          <button class="btn sm" data-a="wa">💬 WhatsApp</button>
-          <button class="btn sm" data-a="sms">✉️ SMS</button>
-          <button class="btn sm" data-a="note">📝 Add note</button>
-          <button class="btn sm" data-a="fu">⏰ Follow-up</button>
-          <button class="btn sm" data-a="ticket">🎫 Ticket</button>
-          ${isManager() ? '<button class="btn sm" data-a="dnc">⛔ Add to DNC</button>' : ''}
+          <button class="btn sm" data-a="wa"><i class="i i-message"></i> WhatsApp</button>
+          <button class="btn sm" data-a="sms"><i class="i i-mail"></i> SMS</button>
+          <button class="btn sm" data-a="note"><i class="i i-note"></i> Add note</button>
+          <button class="btn sm" data-a="fu"><i class="i i-alarm"></i> Follow-up</button>
+          <button class="btn sm" data-a="ticket"><i class="i i-ticket"></i> Ticket</button>
+          ${isManager() ? '<button class="btn sm" data-a="dnc"><i class="i i-ban"></i> Add to DNC</button>' : ''}
           ${isManager() ? '<button class="btn sm red" data-a="delete" style="margin-left:auto">Delete</button>' : ''}
         </div>
         <form class="card" id="leadForm">
@@ -92,7 +92,7 @@ export async function openLead(id, { onChange } = {}) {
             <div class="card-head"><h3>Follow-ups</h3></div>
             <div class="card-body">${l.followups.length ? l.followups.map((f) => `<div class="row between" style="padding:6px 0;border-bottom:1px dashed var(--border)">
               <div><b>${fmtDate(f.due_at)}</b> <small class="muted">${ago(f.due_at)}</small><div class="muted" style="font-size:12.5px">${esc(f.note || '')} · ${esc(f.user_name || '')}</div></div>
-              ${f.status === 'pending' ? `<button class="btn sm" data-done="${f.id}">✓ Done</button>` : `<span class="badge ${f.status === 'done' ? 'green' : ''}">${esc(f.status)}</span>`}</div>`).join('') : '<div class="muted">None</div>'}</div>
+              ${f.status === 'pending' ? `<button class="btn sm" data-done="${f.id}"><i class="i i-check"></i> Done</button>` : `<span class="badge ${f.status === 'done' ? 'green' : ''}">${esc(f.status)}</span>`}</div>`).join('') : '<div class="muted">None</div>'}</div>
           </div>
           <div class="card">
             <div class="card-head"><h3>Tickets</h3></div>

@@ -4,15 +4,15 @@ import {
 
 const NAV = {
   agent: [
-    ['agent', '📞', 'Dialer'], ['dashboard', '📊', 'My Performance'], ['leads', '👥', 'My Leads'], ['followups', '⏰', 'Follow-ups'],
-    ['calls', '🗂️', 'My Calls'], ['tickets', '🎫', 'Tickets'],
+    ['agent', '<i class="i i-phone-call"></i>', 'Dialer'], ['dashboard', '<i class="i i-dashboard"></i>', 'My Performance'], ['leads', '<i class="i i-users"></i>', 'My Leads'], ['followups', '<i class="i i-alarm"></i>', 'Follow-ups'],
+    ['calls', '<i class="i i-list"></i>', 'My Calls'], ['tickets', '<i class="i i-ticket"></i>', 'Tickets'],
   ],
   manager: [
-    ['dashboard', '📊', 'Dashboard'], ['monitor', '🛰️', 'Live Monitor'], ['agent', '📞', 'Dialer'], '|CRM',
-    ['leads', '👥', 'Leads'], ['campaigns', '🎯', 'Campaigns'], ['followups', '⏰', 'Follow-ups'], ['calls', '🗂️', 'Call Logs'], ['tickets', '🎫', 'Tickets'],
-    '|Manage', ['reports', '📈', 'Reports'], ['team', '🧑‍💼', 'Team'], ['settings', '⚙️', 'Settings'],
+    ['dashboard', '<i class="i i-dashboard"></i>', 'Dashboard'], ['monitor', '<i class="i i-radar"></i>', 'Live Monitor'], ['agent', '<i class="i i-phone-call"></i>', 'Dialer'], '|CRM',
+    ['leads', '<i class="i i-users"></i>', 'Leads'], ['campaigns', '<i class="i i-target"></i>', 'Campaigns'], ['followups', '<i class="i i-alarm"></i>', 'Follow-ups'], ['calls', '<i class="i i-list"></i>', 'Call Logs'], ['tickets', '<i class="i i-ticket"></i>', 'Tickets'],
+    '|Manage', ['reports', '<i class="i i-trending-up"></i>', 'Reports'], ['team', '<i class="i i-user-cog"></i>', 'Team'], ['settings', '<i class="i i-settings"></i>', 'Settings'],
   ],
-  superadmin: [['super', '🏢', 'Clients & Licences']],
+  superadmin: [['super', '<i class="i i-building"></i>', 'Clients & Licences']],
 };
 NAV.admin = NAV.manager;
 
@@ -51,10 +51,10 @@ function renderLogin() {
       <h1>Call more customers.<br>Close more deals.</h1>
       <p style="opacity:.9;font-size:15px;max-width:520px">SIM-based auto dialer with built-in CRM, live agent monitoring and reports — for sales, telecalling, support and collection teams.</p>
       <ul>
-        <li>Auto-dial leads from your agents' own SIM cards</li>
-        <li>Real-time monitoring of every agent & call</li>
-        <li>Lead management, follow-ups, WhatsApp & SMS</li>
-        <li>Call recordings, dispositions & performance reports</li>
+        <li><i class="i i-sim"></i>Auto-dial leads from your agents' own SIM cards</li>
+        <li><i class="i i-activity"></i>Real-time monitoring of every agent & call</li>
+        <li><i class="i i-users"></i>Lead management, follow-ups, WhatsApp & SMS</li>
+        <li><i class="i i-bar-chart"></i>Call recordings, dispositions & performance reports</li>
       </ul>
     </div>
     <div class="auth-form">
@@ -115,7 +115,7 @@ function connectSocket() {
   for (const evt of fwd) socket.on(evt, (d) => bus.emit(evt, d));
   socket.on('agent:state', (s) => { state.agent = s; renderAgentChip(); });
   socket.on('dialer:error', (d) => toast(d.message, 'error', 6000));
-  socket.on('supervisor:message', (d) => toast(`💬 ${d.from}: ${d.text}`, 'msg', 0));
+  socket.on('supervisor:message', (d) => toast(`${d.from}: ${d.text}`, 'msg', 0));
   socket.on('force:logout', (d) => logout(d.reason));
   // Native SIM dialing: only the Android app executes calls.
   const startNative = (p) => {
@@ -168,11 +168,11 @@ function renderLayout() {
     </aside>
     <div class="main">
       <header class="topbar">
-        <button class="btn ghost icon menu-btn" id="menuBtn" aria-label="Menu">☰</button>
+        <button class="btn ghost icon menu-btn" id="menuBtn" aria-label="Menu"><i class="i i-menu"></i></button>
         <div class="title" id="pageTitle"></div>
         ${u.role !== 'superadmin' ? '<span id="agentChip" class="hide-sm"></span><span id="connDot" class="badge"><span class="dot"></span>…</span>' : ''}
         ${u.company?.expires_at && (new Date(u.company.expires_at) - Date.now()) < 15 * 86400000 ? `<span class="badge amber hide-sm">Licence expires ${esc(u.company.expires_at)}</span>` : ''}
-        <button class="btn ghost icon" id="themeBtn" title="Light / dark theme">🌓</button>
+        <button class="btn ghost icon" id="themeBtn" title="Light / dark theme"><i class="i i-moon"></i></button>
         <button class="btn sm" id="logoutBtn">Logout</button>
       </header>
       <main class="content" id="page"></main>

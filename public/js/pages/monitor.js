@@ -27,8 +27,8 @@ function paint(el) {
     <div class="page-head">
       <div><h1>Live agent monitor</h1><small class="muted">Updates instantly as agents dial, talk and take breaks</small></div>
       <span class="spacer"></span>
-      <button class="btn" id="bcast">📢 Message all agents</button>
-      <button class="btn ${wall ? 'primary' : ''}" id="wallBtn">🖥️ ${wall ? 'Exit wallboard' : 'Wallboard'}</button>
+      <button class="btn" id="bcast"><i class="i i-megaphone"></i> Message all agents</button>
+      <button class="btn ${wall ? 'primary' : ''}" id="wallBtn"><i class="i i-monitor"></i> ${wall ? 'Exit wallboard' : 'Wallboard'}</button>
     </div>
     <div class="grid g4 ${wall ? 'wallboard' : ''}">
       <div class="card stat"><span class="label">On call now</span><span class="value" style="color:var(--violet)">${s.on_call}</span><span class="sub">${s.online} of ${s.total} agents online</span></div>
@@ -56,15 +56,15 @@ function tile(a) {
   const busy = ['dialing', 'on_call', 'wrapup', 'preview'].includes(a.status);
   return `<div class="card agent-tile st-${esc(a.status)}">
     <div class="who"><span class="ava">${esc(initials(a.name))}</span>
-      <div style="min-width:0;flex:1"><div class="nm ellipsis">${esc(a.name)}</div><small class="muted">${esc(a.team || a.role)}${a.hasDevice ? ' · 📱' : ''}</small></div>
+      <div style="min-width:0;flex:1"><div class="nm ellipsis">${esc(a.name)}</div><small class="muted">${esc(a.team || a.role)}${a.hasDevice ? ' · <i class="i i-smartphone"></i>' : ''}</small></div>
       <div class="right"><div class="state">${esc(AGENT_STATUS[a.status] || a.status)}</div>${a.since && a.status !== 'offline' ? `<small class="mono muted" data-since="${a.since}">${dur(a.elapsed)}</small>` : ''}</div>
     </div>
-    ${busy && a.lead ? `<div style="font-size:13px;color:var(--text)">📞 <b>${esc(a.lead.name || 'Unknown')}</b> <span class="muted">${esc(a.lead.phone || '')}</span></div>` : ''}
-    ${a.status === 'break' ? `<div style="font-size:13px;color:var(--text)">☕ ${esc(a.breakReason || 'Break')}</div>` : ''}
-    ${a.campaign ? `<small class="muted ellipsis">🎯 ${esc(a.campaign)}</small>` : ''}
+    ${busy && a.lead ? `<div style="font-size:13px;color:var(--text)"><i class="i i-phone"></i> <b>${esc(a.lead.name || 'Unknown')}</b> <span class="muted">${esc(a.lead.phone || '')}</span></div>` : ''}
+    ${a.status === 'break' ? `<div style="font-size:13px;color:var(--text)"><i class="i i-coffee"></i> ${esc(a.breakReason || 'Break')}</div>` : ''}
+    ${a.campaign ? `<small class="muted ellipsis"><i class="i i-target"></i> ${esc(a.campaign)}</small>` : ''}
     <div class="mini"><div><b>${a.calls}</b><span>Calls</span></div><div><b>${a.connected}</b><span>Conn.</span></div><div><b>${hours(a.talk_sec)}</b><span>Talk</span></div><div><b style="color:var(--green)">${a.success}</b><span>Won</span></div></div>
     <div class="row">
-      <button class="btn sm" data-act="message" data-id="${a.id}" data-name="${esc(a.name)}">💬</button>
+      <button class="btn sm" data-act="message" data-id="${a.id}" data-name="${esc(a.name)}"><i class="i i-message"></i></button>
       ${a.status !== 'offline' ? `
         ${a.status !== 'break' && !['dialing', 'on_call'].includes(a.status) ? `<button class="btn sm" data-act="break" data-id="${a.id}" data-name="${esc(a.name)}">Break</button>` : ''}
         ${a.autoDial ? `<button class="btn sm" data-act="idle" data-id="${a.id}" data-name="${esc(a.name)}">Pause</button>` : ''}

@@ -30,7 +30,7 @@ export async function render(el) {
       </div>
     </form>
     ${u.role !== 'superadmin' ? `<div class="card span2">
-      <div class="card-head"><h3>📱 Phone / SIM calling</h3>${native.available() ? '<span class="badge green">Android app connected</span>' : '<span class="badge">Browser</span>'}</div>
+      <div class="card-head"><h3><i class="i i-smartphone"></i> Phone / SIM calling</h3>${native.available() ? '<span class="badge green">Android app connected</span>' : '<span class="badge">Browser</span>'}</div>
       <div class="card-body col">
         ${native.available() ? `
           <dl class="kv"><dt>Device</dt><dd>${esc([dev?.manufacturer, dev?.model].filter(Boolean).join(' ') || '—')} ${dev?.android ? `· Android ${esc(dev.android)}` : ''}</dd>

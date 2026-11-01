@@ -168,7 +168,7 @@ export function formData(form) {
 export function toast(message, type = 'info', ms = 3500) {
   const el = document.createElement('div');
   el.className = `toast ${type}`;
-  el.innerHTML = `<div>${esc(message)}</div><span class="x" title="Close">✕</span>`;
+  el.innerHTML = `<div>${esc(message)}</div><span class="x" title="Close"><i class="i i-x"></i></span>`;
   el.querySelector('.x').onclick = () => el.remove();
   document.getElementById('toasts').appendChild(el);
   if (ms) setTimeout(() => el.remove(), ms);
@@ -181,7 +181,7 @@ export function modal({ title, body, wide = false, submit = 'Save', cancel = 'Ca
   const ov = document.createElement('div');
   ov.className = 'overlay';
   ov.innerHTML = `<form class="modal ${wide ? 'wide' : ''}" novalidate>
-    <div class="modal-head"><h2>${esc(title)}</h2><button type="button" class="btn ghost icon" data-close>✕</button></div>
+    <div class="modal-head"><h2>${esc(title)}</h2><button type="button" class="btn ghost icon" data-close><i class="i i-x"></i></button></div>
     <div class="modal-body">${body}</div>
     ${footer !== undefined ? footer : `<div class="modal-foot">${cancel ? `<button type="button" class="btn" data-close>${esc(cancel)}</button>` : ''}${onSubmit ? `<button type="submit" class="btn ${danger ? 'red' : 'primary'}">${esc(submit)}</button>` : ''}</div>`}
   </form>`;
