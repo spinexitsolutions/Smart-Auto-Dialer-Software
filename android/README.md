@@ -8,10 +8,12 @@ real SIM calls, tracks call state, reports call duration from the call log and
 ┌───────────────────────────── Android phone ─────────────────────────────┐
 │  MainActivity ── WebView ── <server>/?native=1#/agent  (web agent panel) │
 │        │             ▲  window.AndroidDialer.dial(...)                    │
-│        │             └─ window.SADNative.onCallState("{json}")            │
+│        │             ├─ window.SADNative.onCallState("{json}")            │
+│        │             └─ window.SADNative.onIncomingCall("{json}")         │
 │  DialerBridge ──► CallPlacer (ACTION_CALL + SIM selection)                │
 │  CallStateService (foreground, "Dialer connected")                        │
-│        └─► CallTracker ─► CallLogHelper (duration) ─► CallEventBus ─► JS  │
+│        ├─► CallTracker ─► CallLogHelper (duration) ─► CallEventBus ─► JS  │
+│        └─► IncomingCallTracker ─► CallLogHelper (number/outcome) ─┘       │
 │                       └─► RecordingUploader (WorkManager + OkHttp)        │
 └──────────────────────────────────────────────────────────────────────────┘
 ```
@@ -120,9 +122,13 @@ When `DEFAULT_SERVER_URL` is set, the setup screen is pre-filled with it; agents
    reads the newest OUTGOING call-log entry to that number (last 10 digits) since the dial time
    (retries up to 3×) → `ended` with `durationSec` and `connected = durationSec > 0`.
    If the phone never goes off-hook within 60 s the attempt ends with `error:"call_not_started"`.
-6. Events are queued in `CallEventBus` and delivered in order to
-   `window.SADNative.onCallState(jsonString)`; undelivered events are retried on page load,
-   activity resume, every 3 s, and when the page calls `AndroidDialer.flushEvents()`.
+6. **IncomingCallTracker** reports calls the agent *receives* – see
+   [Incoming & missed calls](#incoming--missed-calls).
+7. Events are queued in `CallEventBus` and delivered in order to
+   `window.SADNative.onCallState(jsonString)` / `window.SADNative.onIncomingCall(jsonString)`
+   (one independent queue per handler, so a page without `onIncomingCall` never blocks
+   `onCallState`); undelivered events are retried on page load, activity resume, every 3 s, and
+   when the page calls `AndroidDialer.flushEvents()`.
 
 ## 5. JavaScript contract (for the web panel)
 
@@ -139,6 +145,9 @@ When `DEFAULT_SERVER_URL` is set, the setup screen is pre-filled with it; agents
 | `openWhatsApp(phone, text)` | – | Opens `https://wa.me/<digits>?text=…`. Pass the number **with country code**. |
 | `sendSms(phone, text)` | – | Opens the SMS app pre-filled (user presses send). |
 | `setAutoReturn(enabled)` | – | Bring the app back after each call. |
+| `setIncomingTracking(enabled)` | – | Report received calls via `onIncomingCall` (default **on**; also a switch in native Settings). |
+| `isIncomingTrackingEnabled()` | `boolean` | |
+| `getIncomingCall()` | JSON string or `"null"` | Extra. Received call currently ringing / in progress (same shape as an `onIncomingCall` event). |
 | `flushEvents()` | – | Extra. Call once after defining `window.SADNative`. |
 | `getCurrentCall()` | JSON string or `"null"` | Extra. Call currently being tracked. |
 | `getPermissions()` | JSON string `{"CALL_PHONE":true,…,"SYSTEM_ALERT_WINDOW":false}` | Extra. |
@@ -167,21 +176,83 @@ use `JSON.parse`. Shape:
 `endedAt` is `null` until the call has ended. Possible `error` values: `permission_denied`,
 `no_dialer_app`, `invalid_number`, `dial_failed`, `call_not_started`, `superseded`
 (a new `dial()` arrived before the previous call finished). Every `dial()` is guaranteed to
-end with exactly one `ended` event. Optional: `window.SADNative.onPermissions(jsonString)`
+end with exactly one `ended` event. Received calls are reported separately, see below. Optional: `window.SADNative.onPermissions(jsonString)`
 is called after the user answers a permission prompt.
 
 The User-Agent contains `SmartAutoDialer/<version> AndroidDialer`, and the page URL has `?native=1`.
+
+### Incoming & missed calls
+
+Calls the agent **receives** on the phone are reported to
+`window.SADNative.onIncomingCall(jsonString)` – again **a JSON string**, use `JSON.parse`.
+Delivery works exactly like `onCallState`: queued, in order, at-least-once, retried until the
+page defines the handler (call `AndroidDialer.flushEvents()` after defining it).
+De-duplicate by `id` + `state` if needed.
+
+```json
+{
+  "id": "in-1735000000000",      // local id: "in-" + ring start (epoch ms); stable for the whole call
+  "phone": "+919876543210",      // may be "" on "ringing"/"answered" (see below); "" on "ended" = private/unknown caller
+  "state": "ringing | answered | ended",
+  "answered": false,             // "ended": callLogType == INCOMING (1) && durationSec > 0
+  "missed": false,               // "ended" && !answered (missed, rejected, blocked, or picked up for 0 s)
+  "durationSec": 0,              // "ended" only: talk time from the call log
+  "startedAt": 1735000000000,    // when the phone started ringing
+  "endedAt": null,               // epoch ms on "ended", else null
+  "simSlot": -1,                 // 0-based SIM slot on "ended" (from the call log), else -1
+  "callLogType": null            // "ended": CallLog.Calls.TYPE (1 incoming, 3 missed, 5 rejected, 6 blocked); null = no call-log row found
+}
+```
+
+Lifecycle of one call (all events share the same `id`):
+
+1. `ringing` – sent immediately when the phone rings. **`phone` may be empty**: on Android 12+
+   the call-state API carries no number, and on Android 9–11 it is only provided with the
+   *Call log* permission. A second `ringing` with the number filled in can follow for the same
+   `id` (older Androids). Pop the customer as soon as `phone` is non-empty; if it is empty,
+   show "Incoming call…" and wait for `ended`.
+2. `answered` – the agent picked up (phone went off-hook while ringing). Not sent for missed /
+   rejected calls.
+3. `ended` – ~1.5–4.5 s after the phone is idle again, from the newest call-log row of type
+   incoming / missed / rejected / blocked dated at or after `startedAt - 5 s` (a row with the
+   same number is preferred). `phone`, `durationSec`, `simSlot`, `answered`, `missed` and
+   `callLogType` are final here. Every `ringing` is guaranteed to be followed by exactly one
+   `ended` (also after a process restart, once the service runs again). Without call-log access `callLogType` is `null`,
+   `phone` stays as reported (possibly `""`), `answered` falls back to "went off-hook" and
+   `durationSec` to the off-hook time.
+
+Behaviour notes:
+
+* While the phone rings and the panel is not in front, a high-priority notification
+  *"Incoming call: &lt;number&gt;"* is shown; tapping it opens the panel. The app never draws over the
+  system's incoming-call screen. The notification is removed when the call ends.
+* **Call waiting** (a call arrives while another one – including a call dialed from the panel –
+  is in progress) is reported as `ringing` like any other. Because Android cannot say whether
+  the agent then accepted it (holding the other call) or declined it, the app checks the call
+  log: a declined call ends right away as `missed`; otherwise `answered` follows a few seconds
+  later and `ended` comes when the phone is completely idle. The outgoing `onCallState` events
+  of the other call are not affected.
+* Calls placed with `dial()` are **never** reported through `onIncomingCall`, and received calls
+  never through `onCallState`.
+* Tracking only runs while the "Dialer connected" service is running (started whenever the app is
+  opened). Excluding the app from battery optimisation keeps it alive in the background.
+* Turned off via `setIncomingTracking(false)` or *Settings ▸ Track incoming calls*: no new calls
+  are reported (a call already being tracked still gets its `ended`).
+* Timestamps are the phone's clock.
+
+Suggested server handling: create/attach a call record on `ringing` when `phone` is known (or on
+`ended` otherwise), keyed by `id` + agent/device; log a missed call when `ended.missed` is true.
 
 ## 6. Permissions
 
 | Permission | Why |
 | --- | --- |
 | `CALL_PHONE` (required) | Place calls directly from the SIM. |
-| `READ_PHONE_STATE` (required) | Detect call start/end; list SIM cards; map SIM slot → phone account. |
-| `READ_CALL_LOG` (required) | Read the real talk time to decide connected / not connected. |
+| `READ_PHONE_STATE` (required) | Detect call start/end and incoming ringing; list SIM cards; map SIM slot ↔ phone account. |
+| `READ_CALL_LOG` (required) | Read the real talk time to decide connected / not connected; caller number and outcome (answered / missed / rejected) of incoming calls. Also needed for the number on `ringing` on Android 9–11. |
 | `READ_PHONE_NUMBERS` | Show each SIM's own number (when the carrier provides it). |
 | `ANSWER_PHONE_CALLS` | `endCall()` – hang up from the panel (Android 9+). |
-| `POST_NOTIFICATIONS` (Android 13+) | "Dialer connected" status and "tap to return" notifications. |
+| `POST_NOTIFICATIONS` (Android 13+) | "Dialer connected" status, "Incoming call" and "tap to return" notifications. |
 | `READ_MEDIA_AUDIO` / `READ_EXTERNAL_STORAGE` | Find call recordings to upload (only if enabled). |
 | `RECORD_AUDIO` (optional) | Only granted to the panel if it requests the microphone. |
 | `FOREGROUND_SERVICE_*`, `MANAGE_OWN_CALLS` | Install-time; needed for the Android 14 `phoneCall` foreground-service type. |
@@ -206,6 +277,7 @@ the default dialer will most likely be rejected. Options:
   telephony" use cases); approval is not guaranteed.
 * Ship a Play variant without `READ_CALL_LOG` – then `callLogFound` is `false`, `durationSec` is
   `0`, and the server must rely on agent dispositions (or `offhookSec` as a rough estimate).
+  Incoming calls then arrive with `phone: ""` on Android 9+ and `callLogType: null`.
 
 ## 8. Call-recording upload – limitations
 
@@ -252,7 +324,8 @@ android/
         │   ├── SimHelper.kt            # SubscriptionManager / PhoneAccountHandle
         │   ├── CallStateService.kt     # foreground service, call-state listener
         │   ├── CallTracker.kt          # dialing → offhook → ended state machine
-        │   ├── CallLogHelper.kt        # duration lookup
+        │   ├── IncomingCallTracker.kt  # ringing → answered → ended (received calls)
+        │   ├── CallLogHelper.kt        # duration / incoming-call lookup
         │   ├── CallEventBus.kt         # ordered delivery to window.SADNative
         │   ├── RecordingFinder.kt      # locate recording file
         │   ├── RecordingUploader.kt    # WorkManager worker + OkHttp multipart
@@ -269,4 +342,4 @@ android/
   "Ask every time" or the desired default SIM in the phone's settings.
 * **Duration always 0** – grant *Call log* (see *Restricted settings* above).
 * **Debugging** – debug builds enable `chrome://inspect` WebView debugging; logs use tags
-  `CallTracker`, `CallStateService`, `CallEventBus`, `RecordingUploadWorker`.
+  `CallTracker`, `IncomingCallTracker`, `CallStateService`, `CallEventBus`, `RecordingUploadWorker`.

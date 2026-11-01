@@ -13,6 +13,8 @@ export async function render(el, params) {
   await loadRefs();
   selected = new Set();
   const fromCampaign = sessionStorage.getItem('leadCampaign');
+  const fromStatus = sessionStorage.getItem('leadStatus');
+  if (fromStatus) { sessionStorage.removeItem('leadStatus'); Object.assign(q, { status: fromStatus, campaign_id: '', page: 1 }); }
   if (fromCampaign) { sessionStorage.removeItem('leadCampaign'); Object.assign(q, { campaign_id: fromCampaign, status: '', assigned_to: '', q: '', page: 1 }); }
   paintShell(el);
   await load(el);

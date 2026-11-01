@@ -95,8 +95,10 @@ class MainActivity : AppCompatActivity(), CallEventBus.Sink {
     override fun onResume() {
         super.onResume()
         if (!::binding.isInitialized) return
+        AppVisibility.mainActivityResumed = true
         binding.webView.onResume()
         applyKeepScreenOn()
+        Notifications.cancelIncomingCall(this)
         binding.swipeRefresh.isEnabled = prefs.pullToRefresh
         Notifications.cancelReturnToApp(this)
 
@@ -107,6 +109,7 @@ class MainActivity : AppCompatActivity(), CallEventBus.Sink {
     }
 
     override fun onPause() {
+        AppVisibility.mainActivityResumed = false
         if (::binding.isInitialized) {
             // Note: WebView.onPause() does not pause JavaScript, so the panel keeps receiving
             // call events and keeps its socket connection while the dialer UI is in front.
@@ -141,16 +144,18 @@ class MainActivity : AppCompatActivity(), CallEventBus.Sink {
 
     // ------------------------------------------------------------------ CallEventBus.Sink
 
-    override fun deliver(json: String, onResult: (Boolean) -> Unit) {
+    override fun deliver(method: String, json: String, onResult: (Boolean) -> Unit) {
         if (!webViewAlive || isDestroyed) {
             onResult(false)
             return
         }
-        // Returns true only if the page has registered window.SADNative.onCallState.
-        // A throwing handler still counts as delivered so one bad event cannot block the queue.
-        val script = "(function(){try{if(window.SADNative&&typeof window.SADNative.onCallState==='function'){" +
-            "window.SADNative.onCallState(${JSONObject.quote(json)});return true;}}" +
-            "catch(e){console.error('SADNative.onCallState failed',e);return true;}return false;})()"
+        // Returns true only if the page has registered window.SADNative[method]
+        // (onCallState / onIncomingCall). A throwing handler still counts as delivered so one
+        // bad event cannot block the queue.
+        val m = JSONObject.quote(method)
+        val script = "(function(){var m=$m;try{if(window.SADNative&&typeof window.SADNative[m]==='function'){" +
+            "window.SADNative[m](${JSONObject.quote(json)});return true;}}" +
+            "catch(e){console.error('SADNative.'+m+' failed',e);return true;}return false;})()"
         binding.webView.evaluateJavascript(script) { result -> onResult(result == "true") }
     }
 

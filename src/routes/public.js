@@ -50,6 +50,7 @@ router.post('/leads', h((req, res) => {
   }, ['company_id', 'campaign_id', 'name', 'phone', 'phone_key', 'email', 'city', 'company_name', 'source', 'tags', 'priority', 'custom']);
   activity(cid, id, null, 'created', `Lead captured via API (${b.source || 'API'})`);
   dialer.fireWebhook(cid, 'lead.created', db.get('SELECT * FROM leads WHERE id = ?', [id]));
+  require('../messaging').runAutomations(cid, 'lead_created', { leadId: id });
   res.status(201).json({ ok: true, id });
 }));
 

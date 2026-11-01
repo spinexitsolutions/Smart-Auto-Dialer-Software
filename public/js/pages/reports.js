@@ -4,7 +4,7 @@ import {
 
 const TABS = [
   ['agents', 'Agent Performance'], ['campaigns', 'Campaigns'], ['dispositions', 'Dispositions'], ['hourly', 'Hourly'],
-  ['daily', 'Daily Trend'], ['attendance', 'Attendance'], ['sources', 'Lead Sources'],
+  ['daily', 'Daily Trend'], ['attendance', 'Attendance'], ['quality', 'Call Quality (AI)'], ['sources', 'Lead Sources'],
 ];
 
 const f = { from: daysAgo(6), to: today(), campaign_id: '', user_id: '', tab: 'agents' };
@@ -76,6 +76,13 @@ const VIEWS = {
     { key: 'login_sec', label: 'Login time', right: 1, fmt: hours }, { key: 'sessions', label: 'Sessions', right: 1, fmt: n },
     { key: 'breaks', label: 'Breaks', right: 1, fmt: n }, { key: 'break_sec', label: 'Break time', right: 1, fmt: hours },
     { key: 'reasons', label: 'Break reasons', fmt: (v) => esc(v || '—') },
+  ], rows),
+  quality: (rows) => (rows.length ? '' : '<div class="card-body muted">Turn on AI call analysis in Integrations to score calls automatically.</div>') + table([
+    { key: 'name', label: 'Agent', fmt: (v) => `<b>${esc(v)}</b>` }, { key: 'analysed', label: 'Calls analysed', right: 1, fmt: n },
+    { key: 'avg_score', label: 'Avg quality', right: 1, fmt: (v) => (v == null ? '—' : `<span class="score ${v >= 75 ? 'hi' : v >= 50 ? 'mid' : 'lo'}">${v}</span>`) },
+    { key: 'avg_script', label: 'Script followed', right: 1, fmt: (v) => (v == null ? '—' : `${v}%`) },
+    { key: 'positive', label: 'Positive', right: 1, fmt: n }, { key: 'neutral', label: 'Neutral', right: 1, fmt: n },
+    { key: 'negative', label: 'Negative', right: 1, fmt: n }, { key: 'flagged', label: 'Red flags', right: 1, fmt: (v) => (v ? `<b style="color:var(--red)">${v}</b>` : '0') },
   ], rows),
   sources: (rows) => table([
     { key: 'source', label: 'Source', fmt: (v) => `<b>${esc(v)}</b>` }, { key: 'leads', label: 'Leads', right: 1, fmt: n },

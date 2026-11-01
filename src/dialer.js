@@ -13,6 +13,8 @@ const LOCK_MINUTES = 10;
 const OFFLINE_GRACE_MS = 20000;
 
 let io = null;
+// Extension points set by server.js (automations, AI analysis, missed-call messages).
+const hooks = { onDisposition: null, onMissedCall: null };
 const agents = new Map(); // userId -> state
 const monitorTimers = new Map(); // companyId -> timeout
 const demoTimers = new Map(); // callId -> [timeouts]
@@ -537,6 +539,9 @@ function applyDisposition(user, callId, body) {
   });
 
   fireWebhook(user.company_id, 'call.disposed', { call_id: call.id, lead_id: call.lead_id, disposition: disp.name, is_success: !!disp.is_success, notes: body.notes || null, agent_id: call.user_id });
+  try {
+    hooks.onDisposition?.({ companyId: user.company_id, callId: call.id, leadId: call.lead_id, dispositionId: disp.id, campaignId: call.campaign_id, userId: call.user_id });
+  } catch (e) { console.error('disposition hook', e); }
 
   if (a && a.callId === call.id) {
     a.callId = null; a.leadId = null; a.phone = null;
@@ -606,6 +611,104 @@ function fireWebhook(companyId, event, data) {
   }
 }
 
+
+// ---------------------------------------------------------------- incoming calls (Android app)
+
+/**
+ * Incoming call events from the agent's phone:
+ *   { id, phone, state: 'ringing'|'answered'|'ended', answered, missed, durationSec, startedAt, endedAt }
+ * Ringing pops the customer on screen; the end is logged as an inbound call.
+ * Missed calls create a "call back" follow-up; answered calls open the outcome form.
+ */
+function findLeadByPhone(companyId, phone) {
+  const key = phoneKey(phone);
+  if (key.length < 6) return null;
+  return db.get('SELECT * FROM leads WHERE company_id = ? AND phone_key = ? ORDER BY updated_at DESC LIMIT 1', [companyId, key]);
+}
+
+function leadCard(lead) {
+  if (!lead) return null;
+  const last = db.get('SELECT started_at, disposition, notes, direction FROM calls WHERE lead_id = ? ORDER BY id DESC LIMIT 1', [lead.id]);
+  const owner = lead.assigned_to ? db.get('SELECT name FROM users WHERE id = ?', [lead.assigned_to]) : null;
+  const campaign = lead.campaign_id ? db.get('SELECT name FROM campaigns WHERE id = ?', [lead.campaign_id]) : null;
+  return {
+    id: lead.id, name: lead.name, phone: lead.phone, status: lead.status, city: lead.city, company_name: lead.company_name,
+    amount_due: lead.amount_due, due_date: lead.due_date, deal_value: lead.deal_value, last_disposition: lead.last_disposition,
+    owner: owner?.name || null, campaign: campaign?.name || null, last_call: last || null,
+  };
+}
+
+function incomingCall(user, d = {}) {
+  const a = ensureAgent(user);
+  const extId = String(d.id || '').slice(0, 64) || null;
+  const phone = String(d.phone || '');
+  const state = d.state;
+  if (state === 'ringing' || state === 'answered') {
+    const lead = phone ? findLeadByPhone(a.companyId, phone) : null;
+    emitUser(a.userId, 'incoming:ring', { id: extId, phone, state, lead: leadCard(lead), at: Date.now() });
+    a.incoming = { id: extId, phone, state, since: Date.now() };
+    scheduleMonitor(a.companyId);
+    return { ok: true };
+  }
+  if (state !== 'ended') return { ok: false };
+  a.incoming = null;
+  if (extId && db.get("SELECT id FROM calls WHERE user_id = ? AND ext_id = ? AND direction = 'inbound'", [a.userId, extId])) return { ok: true, duplicate: true };
+  const settings = getSettings(a.companyId);
+  const answered = !!d.answered && !d.missed;
+  const dur = Math.max(0, Math.round(Number(d.durationSec) || 0));
+  if (!phone || phone.replace(/\D/g, '').length < 5) {
+    emitUser(a.userId, 'incoming:end', { id: extId, answered });
+    return { ok: false, error: 'Unknown number' };
+  }
+  let lead = findLeadByPhone(a.companyId, phone);
+  const started = d.startedAt ? new Date(Number(d.startedAt)) : new Date(Date.now() - dur * 1000);
+  const startedSql = sqlNow(isNaN(started) ? new Date() : started);
+  const now = sqlNow();
+  const result = db.tx(() => {
+    if (!lead && settings.auto_create_inbound_leads !== false && !isDnc(a.companyId, phone)) {
+      const id = db.run(
+        `INSERT INTO leads (company_id, name, phone, phone_key, source, status, priority, assigned_to, custom) VALUES (?,?,?,?,?,?,?,?, '{}')`,
+        [a.companyId, null, phone, phoneKey(phone), 'Incoming call', 'new', answered ? 0 : 2, a.userId]
+      ).id;
+      activity(a.companyId, id, a.userId, 'created', 'Lead created from an incoming call');
+      lead = db.get('SELECT * FROM leads WHERE id = ?', [id]);
+    }
+    const callId = db.run(
+      `INSERT INTO calls (company_id, lead_id, campaign_id, user_id, phone, direction, mode, status, connected, started_at, answered_at, ended_at, duration, ext_id)
+       VALUES (?,?,?,?,?, 'inbound', 'sim', ?, ?, ?, ?, ?, ?, ?)`,
+      [a.companyId, lead?.id ?? null, lead?.campaign_id ?? null, a.userId, phone, answered ? 'ended' : 'missed', answered ? 1 : 0, startedSql,
+        answered ? startedSql : null, now, answered ? dur : 0, extId]
+    ).id;
+    if (lead) {
+      if (answered) {
+        db.run('UPDATE leads SET last_called_at = ?, updated_at = ? WHERE id = ?', [now, now, lead.id]);
+        activity(a.companyId, lead.id, a.userId, 'call', `Incoming call answered (${dur}s)`);
+      } else {
+        db.run('UPDATE leads SET priority = priority + 1, next_call_at = ?, updated_at = ? WHERE id = ?', [now, now, lead.id]);
+        const owner = lead.assigned_to || a.userId;
+        db.run('INSERT INTO followups (company_id, lead_id, user_id, due_at, note) VALUES (?,?,?,?,?)', [a.companyId, lead.id, owner, now, 'Missed call — call back']);
+        activity(a.companyId, lead.id, a.userId, 'call', 'Missed incoming call — follow-up created');
+      }
+    }
+    return callId;
+  });
+  fireWebhook(a.companyId, answered ? 'call.inbound' : 'call.missed', { ...db.get('SELECT * FROM calls WHERE id = ?', [result]) });
+  if (!answered) {
+    emitUser(a.userId, 'incoming:missed', { callId: result, phone, lead: leadCard(lead) });
+    try { hooks.onMissedCall?.({ companyId: a.companyId, callId: result, leadId: lead?.id, userId: a.userId }); } catch (e) { console.error('missed hook', e); }
+  } else if (!a.callId && !['dialing', 'on_call'].includes(a.status)) {
+    // Let the agent record the outcome of the conversation.
+    a.callId = result; a.leadId = lead?.id ?? null; a.phone = phone;
+    if (a.dispatchTimer) { clearTimeout(a.dispatchTimer); a.dispatchTimer = null; }
+    setStatus(a, 'wrapup');
+    const payload = callPayload(result);
+    emitUser(a.userId, 'call:resume', payload);
+  }
+  emitUser(a.userId, 'incoming:end', { id: extId, answered, callId: result });
+  scheduleMonitor(a.companyId);
+  return { ok: true, callId: result };
+}
+
 function deviceInfo(userId, info) {
   const a = agents.get(userId);
   if (!a) return;
@@ -622,6 +725,7 @@ function _reset() {
 }
 
 module.exports = {
+  hooks, incomingCall, findLeadByPhone, leadCard,
   setIo, onConnect, onDisconnect, setReady, setNotReady, startBreak, endBreak, skipPreview, manualDial,
   callState, hangup, applyDisposition, supervisorAction, snapshot, getAgent, publicState, onCampaignChanged,
   onUserDisabled, fireWebhook, deviceInfo, nextLead, _reset, ensureAgent,

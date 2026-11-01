@@ -8,6 +8,7 @@ const db = require('../db');
 const dialer = require('../dialer');
 const { requireRole, isManager } = require('../auth');
 const { h, bad, notFound, forbidden, int, toSqlDate, sendCsv, audit } = require('../util');
+const ai = require('../ai');
 
 const router = express.Router();
 
@@ -48,19 +49,25 @@ function filters(req) {
   if (q.has_recording === '1') where.push('c.recording_path IS NOT NULL');
   if (q.q) { where.push('(c.phone LIKE $q OR l.name LIKE $q)'); p.q = `%${q.q}%`; }
   if (q.min_duration) { where.push('c.duration >= $mind'); p.mind = int(q.min_duration); }
+  if (q.direction) { where.push('c.direction = $dir'); p.dir = q.direction === 'inbound' ? 'inbound' : 'outbound'; }
+  if (q.status === 'missed') where.push("c.status = 'missed'");
+  if (q.sentiment) { where.push('ca.sentiment = $sent'); p.sent = q.sentiment; }
+  if (q.max_score) { where.push('ca.quality_score <= $mxs'); p.mxs = int(q.max_score); }
   return { where: where.join(' AND '), params: p };
 }
 
 const SELECT = `SELECT c.id, c.lead_id, c.campaign_id, c.user_id, c.phone, c.direction, c.mode, c.status, c.connected, c.started_at,
   c.answered_at, c.ended_at, c.duration, c.disposition, c.notes, c.sim_slot, (c.recording_path IS NOT NULL) AS has_recording,
-  l.name AS lead_name, u.name AS agent_name, cp.name AS campaign_name
-  FROM calls c LEFT JOIN leads l ON l.id = c.lead_id LEFT JOIN users u ON u.id = c.user_id LEFT JOIN campaigns cp ON cp.id = c.campaign_id`;
+  l.name AS lead_name, u.name AS agent_name, cp.name AS campaign_name,
+  ca.status AS ai_status, ca.quality_score AS ai_score, ca.sentiment AS ai_sentiment, ca.summary AS ai_summary
+  FROM calls c LEFT JOIN leads l ON l.id = c.lead_id LEFT JOIN users u ON u.id = c.user_id LEFT JOIN campaigns cp ON cp.id = c.campaign_id
+  LEFT JOIN call_ai ca ON ca.call_id = c.id`;
 
 router.get('/', h((req, res) => {
   const { where, params } = filters(req);
   const limit = Math.min(500, Math.max(1, int(req.query.limit, 50)));
   const page = Math.max(1, int(req.query.page, 1));
-  const total = db.get(`SELECT COUNT(*) AS n FROM calls c LEFT JOIN leads l ON l.id = c.lead_id WHERE ${where}`, params).n;
+  const total = db.get(`SELECT COUNT(*) AS n FROM calls c LEFT JOIN leads l ON l.id = c.lead_id LEFT JOIN call_ai ca ON ca.call_id = c.id WHERE ${where}`, params).n;
   const rows = db.all(`${SELECT} WHERE ${where} ORDER BY c.id DESC LIMIT ${limit} OFFSET ${(page - 1) * limit}`, params);
   res.json({ total, page, limit, rows });
 }));
@@ -70,7 +77,7 @@ router.get('/export', requireRole('manager'), h((req, res) => {
   const rows = db.all(`${SELECT} WHERE ${where} ORDER BY c.id DESC LIMIT 200000`, params);
   audit(req, 'call.export', { count: rows.length });
   sendCsv(res, `calls-${new Date().toISOString().slice(0, 10)}.csv`, rows,
-    ['id', 'started_at', 'agent_name', 'campaign_name', 'lead_name', 'phone', 'mode', 'status', 'connected', 'duration', 'disposition', 'notes', 'has_recording']);
+    ['id', 'started_at', 'direction', 'agent_name', 'campaign_name', 'lead_name', 'phone', 'mode', 'status', 'connected', 'duration', 'disposition', 'notes', 'has_recording', 'ai_score', 'ai_sentiment', 'ai_summary']);
 }));
 
 function loadCall(req) {
@@ -83,6 +90,21 @@ function loadCall(req) {
 router.get('/:id', h((req, res) => {
   const c = loadCall(req);
   res.json(db.get(`${SELECT} WHERE c.id = ?`, [c.id]));
+}));
+
+router.get('/:id/ai', h((req, res) => {
+  const c = loadCall(req);
+  res.json(ai.getAnalysis(c.id) || { status: 'none' });
+}));
+
+router.post('/:id/analyze', requireRole('manager'), h((req, res) => {
+  const c = loadCall(req);
+  const cfg = ai.aiConfig(c.company_id);
+  const demo = require('../settings').getSettings(c.company_id).demo_mode;
+  if (!cfg.enabled && !demo) throw bad('Turn on AI call analysis in Integrations first');
+  if (!c.recording_path && !demo) throw bad('This call has no recording to analyse');
+  ai.enqueue(c.id, { force: true });
+  res.json({ ok: true, status: 'pending' });
 }));
 
 router.post('/:id/disposition', h((req, res) => {
@@ -106,6 +128,7 @@ router.post('/:id/recording', (req, res, next) => {
     if (call.recording_path) fs.rm(path.join(config.uploadsDir, call.recording_path), () => {});
     const rel = path.relative(config.uploadsDir, req.file.path);
     db.run('UPDATE calls SET recording_path = ? WHERE id = ?', [rel, int(req.params.id)]);
+    ai.enqueue(int(req.params.id));
     res.json({ ok: true });
   });
 });

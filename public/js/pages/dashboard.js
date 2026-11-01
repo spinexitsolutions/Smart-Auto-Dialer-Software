@@ -26,10 +26,11 @@ export async function render(el) {
         <div class="card stat"><span class="icon"><i class="i i-timer"></i></span><span class="label">Talk time</span><span class="value">${hours(t.talk_sec)}</span><span class="sub">avg ${t.connected ? Math.round(t.talk_sec / t.connected) : 0}s per connected call</span></div>
         <div class="card stat"><span class="icon"><i class="i i-trophy"></i></span><span class="label">Successful outcomes</span><span class="value" style="color:var(--green)">${num(t.success)}</span><span class="sub">${pct(t.success, t.connected)}% of connected · ${delta(t.success, y.success)}</span></div>
       </div>
-      <div class="grid g4 mt">
+      <div class="grid g4 mt" style="grid-template-columns:repeat(auto-fit,minmax(200px,1fr))">
         <a class="card stat" href="#/followups" style="color:inherit;text-decoration:none"><span class="label">Follow-ups overdue</span><span class="value" style="color:${d.followups.overdue ? 'var(--red)' : 'inherit'}">${num(d.followups.overdue)}</span><span class="sub">${num(d.followups.today)} more due in next 24h</span></a>
         <div class="card stat"><span class="label">New leads today</span><span class="value">${num(d.leadsToday)}</span><span class="sub">${num(totalLeads)} leads ${mgr ? 'in CRM' : 'assigned to you'}</span></div>
-        <a class="card stat" href="#/tickets" style="color:inherit;text-decoration:none"><span class="label">Open tickets</span><span class="value">${num(d.openTickets)}</span><span class="sub">Support queue</span></a>
+        <a class="card stat" href="#/calls" style="color:inherit;text-decoration:none"><span class="label">Missed incoming calls</span><span class="value" style="color:${d.inbound.missed - d.inbound.called_back > 0 ? 'var(--red)' : 'inherit'}">${num(d.inbound.missed)}</span><span class="sub">${num(d.inbound.called_back)} called back · ${num(d.inbound.total)} incoming today</span></a>
+        <a class="card stat" href="#/reports" style="color:inherit;text-decoration:none"><span class="label">AI call quality</span><span class="value">${d.quality.analysed ? d.quality.avg_score : '—'}</span><span class="sub">${d.quality.analysed ? `${num(d.quality.analysed)} calls analysed · ${num(d.quality.negative)} unhappy customers` : 'Turn on in Integrations'}</span></a>
         <div class="card stat"><span class="label">Collections (PTP)</span><span class="value">${money(d.collections.ptp)}</span><span class="sub">${num(d.collections.ptp_count)} promises · ${money(d.collections.due)} outstanding</span></div>
       </div>
       <div class="grid g3 mt">

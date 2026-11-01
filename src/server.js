@@ -14,10 +14,12 @@ const { sqlNow } = require('./util');
 
 function createApp() {
   db.init();
+  wireHooks();
   const app = express();
   app.disable('x-powered-by');
   app.set('trust proxy', 'loopback, linklocal, uniquelocal');
-  app.use(express.json({ limit: '10mb' }));
+  // Keep the raw body for webhook signature checks (Facebook X-Hub-Signature-256).
+  app.use(express.json({ limit: '10mb', verify: (req, res, buf) => { if (req.originalUrl.startsWith('/api/hooks/')) req.rawBody = buf; } }));
   app.use(express.urlencoded({ extended: true, limit: '10mb' }));
   app.use((req, res, next) => {
     res.setHeader('X-Content-Type-Options', 'nosniff');
@@ -38,6 +40,13 @@ function createApp() {
     next();
   }, require('./routes/public'));
 
+  // Lead-source webhooks (Facebook, Google Ads, IndiaMART, JustDial, website forms).
+  app.use('/api/hooks', (req, res, next) => {
+    res.set({ 'Access-Control-Allow-Origin': '*', 'Access-Control-Allow-Headers': 'Content-Type, X-Secret', 'Access-Control-Allow-Methods': 'GET, POST' });
+    if (req.method === 'OPTIONS') return res.sendStatus(204);
+    next();
+  }, require('./routes/integrations').hooksRouter);
+
   const { settingsRouter, monitorRouter, superRouter } = require('./routes/admin');
   app.use('/api/super', authenticate, superRouter);
 
@@ -50,6 +59,7 @@ function createApp() {
   api.use('/reports', require('./routes/reports'));
   api.use('/settings', settingsRouter);
   api.use('/monitor', monitorRouter);
+  api.use('/integrations', require('./routes/integrations'));
   api.use('/', require('./routes/crm'));
   app.use('/api', api);
 
@@ -115,6 +125,7 @@ function attachSockets(server) {
     socket.on('call:state', safe((u, d) => dialer.callState(u.id, d || {})));
     socket.on('call:hangup', safe((u) => dialer.hangup(u)));
     socket.on('device:info', safe((u, d) => dialer.deviceInfo(u.id, d)));
+    socket.on('call:incoming', safe((u, d) => dialer.incomingCall(u, d || {})));
     socket.on('monitor:get', safe((u) => (isMgr ? { snapshot: dialer.snapshot(u.company_id) } : {})));
     socket.on('disconnect', () => dialer.onDisconnect(socket, user));
   });
@@ -131,6 +142,24 @@ function ensureSuperAdmin() {
   console.log(`  Password: ${process.env.SUPERADMIN_PASSWORD ? '(from SUPERADMIN_PASSWORD)' : password}`);
   console.log('  Use this login to create client companies & licences.');
   console.log('=====================================================\n');
+}
+
+/** Wire automations and AI into dialer / lead events. */
+function wireHooks() {
+  const messaging = require('./messaging');
+  const ai = require('./ai');
+  const sources = require('./leadsources');
+  dialer.hooks.onDisposition = ({ companyId, callId, leadId, dispositionId, campaignId, userId }) => {
+    messaging.runAutomations(companyId, 'disposition', { leadId, callId, dispositionId, campaignId, userId });
+    const call = db.get('SELECT recording_path, connected FROM calls WHERE id = ?', [callId]);
+    // Recordings usually arrive after the outcome; in demo mode there is no recording at all.
+    if (call && (call.recording_path || getSettings(companyId).demo_mode) && call.connected) ai.enqueue(callId);
+  };
+  dialer.hooks.onMissedCall = ({ companyId, callId, leadId, userId }) => messaging.runAutomations(companyId, 'missed_call', { leadId, callId, userId });
+  sources.hooks.onLead = (companyId, leadId) => {
+    messaging.runAutomations(companyId, 'lead_created', { leadId });
+    dialer.fireWebhook(companyId, 'lead.created', db.get('SELECT * FROM leads WHERE id = ?', [leadId]));
+  };
 }
 
 /** Housekeeping: release stale lead locks, purge old recordings. */
@@ -152,6 +181,12 @@ function startJobs() {
   };
   setTimeout(tick, 5000).unref();
   setInterval(tick, 10 * 60000).unref();
+  const messaging = require('./messaging');
+  const ai = require('./ai');
+  const sources = require('./leadsources');
+  setInterval(() => messaging.processQueue().catch((e) => console.error('messages', e)), 20000).unref();
+  setInterval(() => ai.processQueue().catch((e) => console.error('ai', e)), 15000).unref();
+  setInterval(() => sources.syncAll().catch((e) => console.error('indiamart', e)), 10 * 60000).unref();
 }
 
 function start() {

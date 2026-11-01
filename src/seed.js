@@ -170,6 +170,44 @@ function run() {
     }
   });
 
+  // Integrations, automations, incoming calls and AI analyses so every feature has data in the demo.
+  const crypto = require('crypto');
+  const tok = () => crypto.randomBytes(18).toString('base64url');
+  db.tx(() => {
+    const integ = (type, name, config, campaign, count) => db.run(
+      'INSERT INTO integrations (company_id, type, name, token, config, campaign_id, agent_ids, leads_count, last_lead_at) VALUES (?,?,?,?,?,?,?,?,?)',
+      [cid, type, name, tok(), JSON.stringify(config), campaign, JSON.stringify(campAgents[campaign] || []), count, sqlNow(new Date(Date.now() - 3600000))]);
+    integ('facebook', 'Facebook Lead Ads — Home Loan', { verify_token: 'demo-verify' }, c1, 58);
+    integ('google_ads', 'Google Ads — Home Loan form', { google_key: 'demo-key' }, c1, 31);
+    integ('website', 'Website enquiry form', {}, c1, 22);
+    const interested = byName('Interested'); const ptp = byName('Promise to Pay');
+    const tpl = (n) => db.get('SELECT id FROM templates WHERE company_id = ? AND name = ?', [cid, n])?.id;
+    db.run("INSERT INTO automations (company_id, name, trigger, disposition_id, channel, template_id) VALUES (?,?, 'disposition', ?, 'whatsapp', ?)", [cid, 'Brochure to interested customers', interested.id, tpl('Intro + Brochure')]);
+    db.run("INSERT INTO automations (company_id, name, trigger, disposition_id, channel, template_id) VALUES (?,?, 'disposition', ?, 'sms', ?)", [cid, 'PTP confirmation SMS', ptp.id, tpl('PTP confirmation')]);
+    db.run("INSERT INTO automations (company_id, name, trigger, channel, template_id) VALUES (?,?, 'missed_call', 'whatsapp', ?)", [cid, 'Sorry we missed your call', tpl('Missed you')]);
+    // Incoming calls today: some answered, some missed.
+    const inLeads = leads.slice(0, 12);
+    inLeads.forEach((l, i) => {
+      const agent = pick(agents);
+      const t = new Date(Date.now() - Math.floor(rand() * 6 * 3600000));
+      const answered = i % 3 !== 0;
+      const dur = answered ? 30 + Math.floor(rand() * 200) : 0;
+      db.run(`INSERT INTO calls (company_id, lead_id, campaign_id, user_id, phone, direction, mode, status, connected, started_at, answered_at, ended_at, duration, ext_id)
+              VALUES (?,?,?,?,?, 'inbound', 'sim', ?, ?, ?, ?, ?, ?, ?)`,
+        [cid, l.id, l.campaign, agent, l.phone, answered ? 'ended' : 'missed', answered ? 1 : 0, sqlNow(t), answered ? sqlNow(t) : null, sqlNow(new Date(t.getTime() + dur * 1000)), dur, `in-demo-${i}`]);
+      if (!answered) db.run('INSERT INTO followups (company_id, lead_id, user_id, due_at, note) VALUES (?,?,?,?,?)', [cid, l.id, agent, sqlNow(t), 'Missed call — call back']);
+    });
+    // AI analyses for recent connected calls.
+    const { demoAnalysis } = require('./ai');
+    const recent = db.all("SELECT c.*, l.name AS lead_name, u.name AS agent_name, cp.name AS camp_name, d.is_success FROM calls c LEFT JOIN leads l ON l.id = c.lead_id LEFT JOIN users u ON u.id = c.user_id LEFT JOIN campaigns cp ON cp.id = c.campaign_id LEFT JOIN dispositions d ON d.id = c.disposition_id WHERE c.company_id = ? AND c.connected = 1 AND c.direction = 'outbound' ORDER BY c.started_at DESC LIMIT 80", [cid]);
+    for (const c of recent) {
+      const a = demoAnalysis({ customer: c.lead_name, agent: c.agent_name, campaign: c.camp_name, disposition: c.disposition, success: !!c.is_success }, c.id);
+      const { model, ...data } = a;
+      db.run("INSERT INTO call_ai (call_id, company_id, status, transcript, summary, sentiment, quality_score, script_score, data, model) VALUES (?,?, 'done', ?,?,?,?,?,?,?)",
+        [c.id, cid, '(Demo mode: no real recording — sample analysis shown)', data.summary, data.customer_sentiment, data.quality_score, data.script_adherence, JSON.stringify(data), model]);
+    }
+  });
+
   console.log('\nDemo company created: Demo Finserv Pvt Ltd (demo mode ON - calls are simulated)');
   console.log('  Admin:    admin@demo.com    / demo123');
   console.log('  Manager:  manager@demo.com  / demo123');

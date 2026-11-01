@@ -123,6 +123,26 @@ router.get('/', h((req, res) => {
   res.json({ total, page, limit, rows: rows.map((r) => mask(req, parseCustom(r))) });
 }));
 
+/** Pipeline (Kanban) board: leads grouped by status. */
+router.get('/board', h((req, res) => {
+  const { where, params } = buildFilters({ ...req, query: { ...req.query, status: '' } });
+  const settings = getSettings(req.user.company_id);
+  const show = req.query.statuses ? String(req.query.statuses).split(',').filter((s) => settings.lead_statuses.includes(s))
+    : settings.lead_statuses.filter((s) => !['dnc', 'invalid'].includes(s));
+  const limit = Math.min(200, Math.max(10, int(req.query.limit, 50)));
+  const columns = show.map((status) => {
+    const p = { ...params, bst: status };
+    const agg = db.get(`SELECT COUNT(*) AS n, COALESCE(SUM(l.deal_value),0) AS value, COALESCE(SUM(l.amount_due),0) AS due FROM leads l WHERE ${where} AND l.status = $bst`, p);
+    const rows = db.all(
+      `SELECT l.id, l.name, l.phone, l.status, l.city, l.priority, l.deal_value, l.amount_due, l.last_disposition, l.last_called_at, l.next_call_at,
+         l.attempts, l.tags, l.source, u.name AS assigned_name, c.name AS campaign_name
+       FROM leads l LEFT JOIN users u ON u.id = l.assigned_to LEFT JOIN campaigns c ON c.id = l.campaign_id
+       WHERE ${where} AND l.status = $bst ORDER BY l.priority DESC, l.updated_at DESC LIMIT ${limit}`, p);
+    return { status, count: agg.n, value: agg.value, due: agg.due, rows: rows.map((r) => mask(req, r)) };
+  });
+  res.json({ columns });
+}));
+
 router.get('/export', requireRole('manager'), h((req, res) => {
   const { where, params } = buildFilters(req);
   const rows = db.all(
@@ -140,7 +160,8 @@ router.get('/export', requireRole('manager'), h((req, res) => {
 router.get('/:id', h((req, res) => {
   const lead = parseCustom(loadLead(req));
   const calls = db.all(
-    `SELECT c.*, u.name AS agent_name FROM calls c LEFT JOIN users u ON u.id = c.user_id WHERE c.lead_id = ? ORDER BY c.id DESC LIMIT 100`,
+    `SELECT c.*, u.name AS agent_name, ca.status AS ai_status, ca.quality_score AS ai_score, ca.sentiment AS ai_sentiment, ca.summary AS ai_summary
+     FROM calls c LEFT JOIN users u ON u.id = c.user_id LEFT JOIN call_ai ca ON ca.call_id = c.id WHERE c.lead_id = ? ORDER BY c.id DESC LIMIT 100`,
     [lead.id]
   );
   const activities = db.all(

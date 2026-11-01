@@ -61,6 +61,17 @@
                 style="@style/SettingsHint"
                 android:text="@string/settings_auto_return_hint" />
 
+            <com.google.android.material.materialswitch.MaterialSwitch
+                android:id="@+id/incomingTrackingSwitch"
+                android:layout_width="match_parent"
+                android:layout_height="wrap_content"
+                android:layout_marginTop="8dp"
+                android:text="@string/settings_incoming_tracking" />
+
+            <TextView
+                style="@style/SettingsHint"
+                android:text="@string/settings_incoming_tracking_hint" />
+
             <TextView
                 android:id="@+id/overlayStatus"
                 android:layout_width="match_parent"

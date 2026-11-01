@@ -107,5 +107,23 @@ Settings → API & Webhooks. Each webhook is sent as `POST` JSON in the form `{e
 Events:
 - `call.ended`
 - `call.disposed`
+- `call.inbound`
+- `call.missed`
 - `lead.created`
 - `lead.status_changed`
+
+## Integrations checklist
+
+- **Lead-source webhooks** (Facebook, Google Ads, IndiaMART, JustDial, website) need the server reachable on a public **HTTPS** domain. Meta and Google will not call `localhost` or a plain IP address.
+  - Each connection's URL is shown under Integrations → Lead sources. It looks like `https://dialer.yourcompany.com/api/hooks/<secret-token>`.
+  - Deleting the connection disables the URL.
+- **Facebook Lead Ads** needs a Meta app with the `leads_retrieval` and `pages_manage_metadata` permissions, plus a long-lived Page access token.
+- **WhatsApp automations:**
+  - Messages sent outside the 24-hour window must use a template that Meta has approved. Put the template name and its parameters on the automation.
+  - MSG91 SMS needs a DLT-approved Flow ID.
+- **AI call analysis** costs money per call. You need two keys:
+  - a speech-to-text key (Sarvam AI, Deepgram or OpenAI);
+  - an Anthropic API key.
+
+  Claude Opus 5.5 is the default model. Choose Claude Haiku 5.5 in Integrations → AI to lower the cost. Analysis only runs for calls that have a recording.
+- **Outgoing traffic:** the server must be able to reach `graph.facebook.com`, `mapi.indiamart.com`, `control.msg91.com`, `api.anthropic.com`, and your speech-to-text provider.

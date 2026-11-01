@@ -18,7 +18,8 @@ import androidx.core.content.ContextCompat
 
 /**
  * Foreground service ("Dialer connected") that keeps the process alive while the agent is
- * on a call and forwards telephony call-state changes to [CallTracker].
+ * on a call and forwards telephony call-state changes to [CallTracker] (calls placed by the
+ * panel) and [IncomingCallTracker] (calls received on the phone).
  *
  * Uses TelephonyCallback on Android 12+ and PhoneStateListener below.
  * Foreground-service type: `phoneCall` (falls back to `dataSync` if the platform rejects it).
@@ -30,6 +31,9 @@ class CallStateService : Service() {
 
     @Suppress("DEPRECATION")
     private var phoneStateListener: PhoneStateListener? = null
+
+    /** Last TelephonyManager.CALL_STATE_* seen (-1 = none yet). */
+    private var lastState = -1
 
     override fun onBind(intent: Intent?): IBinder? = null
 
@@ -95,7 +99,8 @@ class CallStateService : Service() {
                     Log.w(TAG, "READ_PHONE_STATE missing - call state not tracked yet")
                     return
                 }
-                val callback = CallStateCallback { state -> onCallState(state) }
+                // TelephonyCallback never provides the caller number; it is filled from the call log.
+                val callback = CallStateCallback { state -> onCallState(state, null) }
                 tm.registerTelephonyCallback(mainExecutor, callback)
                 telephonyCallback = callback
             } else {
@@ -103,7 +108,8 @@ class CallStateService : Service() {
                 val listener = object : PhoneStateListener() {
                     @Deprecated("Deprecated in Java")
                     override fun onCallStateChanged(state: Int, phoneNumber: String?) {
-                        onCallState(state)
+                        // phoneNumber is only filled for RINGING, and on API 28+ only with READ_CALL_LOG.
+                        onCallState(state, phoneNumber)
                     }
                 }
                 @Suppress("DEPRECATION")
@@ -129,11 +135,17 @@ class CallStateService : Service() {
         }
         telephonyCallback = null
         phoneStateListener = null
+        lastState = -1
     }
 
-    private fun onCallState(state: Int) {
-        Log.d(TAG, "call state -> $state")
+    private fun onCallState(state: Int, incomingNumber: String?) {
+        Log.d(TAG, "call state $lastState -> $state")
+        val prev = lastState
+        lastState = state
+        // Each tracker keeps its own state: an incoming / waiting call never touches the
+        // outgoing tracker and vice versa.
         CallTracker.onTelephonyState(this, state)
+        IncomingCallTracker.onTelephonyState(this, state, prev, incomingNumber)
     }
 
     @RequiresApi(Build.VERSION_CODES.S)

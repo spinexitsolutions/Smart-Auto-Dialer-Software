@@ -108,4 +108,36 @@ object SimHelper {
             null
         }
     }
+
+    /**
+     * Maps a call-log PHONE_ACCOUNT_ID back to a 0-based SIM slot, or -1 if unknown.
+     * The id is usually the subscription id (or the ICCID on some older devices).
+     */
+    @SuppressLint("MissingPermission")
+    fun slotForPhoneAccountId(context: Context, accountId: String?): Int {
+        if (accountId.isNullOrBlank() || !Permissions.has(context, Manifest.permission.READ_PHONE_STATE)) return -1
+        return try {
+            val sm = context.getSystemService(SubscriptionManager::class.java) ?: return -1
+            val subs: List<SubscriptionInfo> = sm.activeSubscriptionInfoList ?: emptyList()
+            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.R) {
+                val telecom = context.getSystemService(TelecomManager::class.java)
+                val tm = context.getSystemService(TelephonyManager::class.java)
+                if (telecom != null && tm != null) {
+                    val handle = (telecom.callCapablePhoneAccounts ?: emptyList()).firstOrNull { it.id == accountId }
+                    if (handle != null) {
+                        val subId = tm.getSubscriptionId(handle)
+                        subs.firstOrNull { it.subscriptionId == subId }?.let { return it.simSlotIndex }
+                    }
+                }
+            }
+            subs.firstOrNull { info ->
+                val iccId = info.iccId.orEmpty()
+                accountId == info.subscriptionId.toString() ||
+                    (iccId.isNotEmpty() && (accountId == iccId || accountId.startsWith(iccId) || iccId.startsWith(accountId)))
+            }?.simSlotIndex ?: -1
+        } catch (e: Exception) {
+            Log.w(TAG, "Unable to map phone account $accountId to a SIM slot", e)
+            -1
+        }
+    }
 }

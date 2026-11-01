@@ -230,7 +230,104 @@ CREATE TABLE IF NOT EXISTS audit_logs (
   created_at TEXT NOT NULL DEFAULT (datetime('now'))
 );
 CREATE INDEX IF NOT EXISTS idx_audit_company ON audit_logs(company_id, created_at);
+
+-- Lead sources (Facebook, Google Ads, IndiaMART, JustDial, website) and messaging / AI providers.
+CREATE TABLE IF NOT EXISTS integrations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  type TEXT NOT NULL,
+  name TEXT NOT NULL,
+  token TEXT NOT NULL UNIQUE,
+  config TEXT NOT NULL DEFAULT '{}',
+  campaign_id INTEGER REFERENCES campaigns(id) ON DELETE SET NULL,
+  agent_ids TEXT NOT NULL DEFAULT '[]',
+  rr_index INTEGER NOT NULL DEFAULT 0,
+  active INTEGER NOT NULL DEFAULT 1,
+  leads_count INTEGER NOT NULL DEFAULT 0,
+  last_lead_at TEXT,
+  last_sync_at TEXT,
+  last_error TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_integrations_company ON integrations(company_id, type);
+
+CREATE TABLE IF NOT EXISTS integration_seen (
+  integration_id INTEGER NOT NULL REFERENCES integrations(id) ON DELETE CASCADE,
+  ext_id TEXT NOT NULL,
+  PRIMARY KEY (integration_id, ext_id)
+);
+
+CREATE TABLE IF NOT EXISTS automations (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  name TEXT NOT NULL,
+  trigger TEXT NOT NULL CHECK (trigger IN ('disposition','missed_call','lead_created')),
+  disposition_id INTEGER REFERENCES dispositions(id) ON DELETE CASCADE,
+  campaign_id INTEGER REFERENCES campaigns(id) ON DELETE CASCADE,
+  channel TEXT NOT NULL CHECK (channel IN ('whatsapp','sms')),
+  template_id INTEGER REFERENCES templates(id) ON DELETE SET NULL,
+  provider_template TEXT,
+  provider_lang TEXT,
+  provider_params TEXT,
+  delay_minutes INTEGER NOT NULL DEFAULT 0,
+  active INTEGER NOT NULL DEFAULT 1,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+
+CREATE TABLE IF NOT EXISTS message_logs (
+  id INTEGER PRIMARY KEY AUTOINCREMENT,
+  company_id INTEGER NOT NULL REFERENCES companies(id) ON DELETE CASCADE,
+  lead_id INTEGER REFERENCES leads(id) ON DELETE SET NULL,
+  call_id INTEGER REFERENCES calls(id) ON DELETE SET NULL,
+  automation_id INTEGER REFERENCES automations(id) ON DELETE SET NULL,
+  channel TEXT NOT NULL,
+  phone TEXT NOT NULL,
+  body TEXT,
+  provider_template TEXT,
+  provider_lang TEXT,
+  provider_params TEXT,
+  status TEXT NOT NULL DEFAULT 'queued',
+  attempts INTEGER NOT NULL DEFAULT 0,
+  error TEXT,
+  provider_ref TEXT,
+  due_at TEXT NOT NULL DEFAULT (datetime('now')),
+  sent_at TEXT,
+  created_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_messages_queue ON message_logs(status, due_at);
+CREATE INDEX IF NOT EXISTS idx_messages_company ON message_logs(company_id, id);
+
+CREATE TABLE IF NOT EXISTS call_ai (
+  call_id INTEGER PRIMARY KEY REFERENCES calls(id) ON DELETE CASCADE,
+  company_id INTEGER NOT NULL,
+  status TEXT NOT NULL DEFAULT 'pending',
+  transcript TEXT,
+  summary TEXT,
+  sentiment TEXT,
+  quality_score INTEGER,
+  script_score INTEGER,
+  data TEXT,
+  model TEXT,
+  error TEXT,
+  attempts INTEGER NOT NULL DEFAULT 0,
+  created_at TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_call_ai_status ON call_ai(status);
 `;
+
+/** Columns added after the first release: [table, column, definition]. */
+const MIGRATIONS = [
+  ['calls', 'ext_id', 'TEXT'],
+];
+
+function migrate(d) {
+  for (const [table, col, def] of MIGRATIONS) {
+    const cols = d.prepare(`PRAGMA table_info(${table})`).all().map((c) => c.name);
+    if (!cols.includes(col)) d.exec(`ALTER TABLE ${table} ADD COLUMN ${col} ${def}`);
+  }
+  d.exec('CREATE INDEX IF NOT EXISTS idx_calls_ext ON calls(user_id, ext_id)');
+}
 
 function clean(params) {
   if (params == null) return [];
@@ -252,6 +349,7 @@ function init(file = config.dbFile) {
   db = new DatabaseSync(file);
   db.exec('PRAGMA journal_mode = WAL; PRAGMA foreign_keys = ON; PRAGMA busy_timeout = 5000;');
   db.exec(SCHEMA);
+  migrate(db);
   return db;
 }
 

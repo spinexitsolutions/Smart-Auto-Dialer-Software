@@ -17,6 +17,7 @@ const DEFAULT_SETTINGS = {
   closed_statuses: ['converted', 'not_interested', 'dnc', 'invalid'],
   custom_fields: [],
   daily_call_target: 150,
+  auto_create_inbound_leads: true,
 };
 
 function getSettings(companyId) {

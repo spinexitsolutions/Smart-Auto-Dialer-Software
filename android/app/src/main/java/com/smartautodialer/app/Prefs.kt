@@ -3,6 +3,7 @@ package com.smartautodialer.app
 import android.content.Context
 import android.content.SharedPreferences
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import org.json.JSONArray
 import org.json.JSONObject
 
 /**
@@ -62,6 +63,21 @@ class Prefs private constructor(context: Context) {
             }.apply()
         }
 
+    /** Report calls received on the phone to the panel (`window.SADNative.onIncomingCall`). */
+    var incomingTracking: Boolean
+        get() = sp.getBoolean(KEY_INCOMING_TRACKING, true)
+        set(value) = sp.edit().putBoolean(KEY_INCOMING_TRACKING, value).apply()
+
+    /** Incoming calls currently being tracked (normally 0 or 1; 2 with call waiting). */
+    var activeIncoming: List<IncomingCall>
+        get() = IncomingCall.listFromJson(sp.getString(KEY_ACTIVE_INCOMING, null))
+        set(value) {
+            sp.edit().apply {
+                if (value.isEmpty()) remove(KEY_ACTIVE_INCOMING)
+                else putString(KEY_ACTIVE_INCOMING, IncomingCall.listToJson(value))
+            }.apply()
+        }
+
     /** URL of the agent panel loaded in the WebView. */
     fun panelUrl(): String = "${serverUrl.trimEnd('/')}/?native=1#/agent"
 
@@ -76,6 +92,8 @@ class Prefs private constructor(context: Context) {
         private const val KEY_RECORDING_ENABLED = "recording_upload_enabled"
         private const val KEY_RECORDING_FOLDER = "recording_folder"
         private const val KEY_ACTIVE_CALL = "active_call"
+        private const val KEY_INCOMING_TRACKING = "incoming_tracking"
+        private const val KEY_ACTIVE_INCOMING = "active_incoming"
 
         @Volatile
         private var instance: Prefs? = null
@@ -151,6 +169,64 @@ data class ActiveCall(
                 )
             } catch (e: Exception) {
                 null
+            }
+        }
+    }
+}
+
+/** State of a call received on the phone, tracked by [IncomingCallTracker]. */
+data class IncomingCall(
+    /** Local id, `in-<epochMs>`. */
+    val id: String,
+    /** Caller number; may be empty until filled from the call log. */
+    val phone: String,
+    /** Epoch ms when RINGING was observed. */
+    val startedAt: Long,
+    /** Epoch ms when it went OFFHOOK while ringing (0 if not). */
+    val answeredAt: Long = 0L,
+    /** Epoch ms when the phone returned to IDLE (0 if not yet). */
+    val endedAt: Long = 0L,
+    val state: String = IncomingCallTracker.STATE_RINGING,
+    /** Arrived while another call was already off-hook (call waiting). */
+    val waiting: Boolean = false,
+) {
+    fun toJsonObject(): JSONObject = JSONObject()
+        .put("id", id)
+        .put("phone", phone)
+        .put("startedAt", startedAt)
+        .put("answeredAt", answeredAt)
+        .put("endedAt", endedAt)
+        .put("state", state)
+        .put("waiting", waiting)
+
+    companion object {
+        fun fromJsonObject(o: JSONObject): IncomingCall? = try {
+            IncomingCall(
+                id = o.getString("id"),
+                phone = o.optString("phone", ""),
+                startedAt = o.getLong("startedAt"),
+                answeredAt = o.optLong("answeredAt", 0L),
+                endedAt = o.optLong("endedAt", 0L),
+                state = o.optString("state", IncomingCallTracker.STATE_RINGING),
+                waiting = o.optBoolean("waiting", false),
+            )
+        } catch (e: Exception) {
+            null
+        }
+
+        fun listToJson(calls: List<IncomingCall>): String {
+            val a = JSONArray()
+            calls.forEach { a.put(it.toJsonObject()) }
+            return a.toString()
+        }
+
+        fun listFromJson(json: String?): List<IncomingCall> {
+            if (json.isNullOrBlank()) return emptyList()
+            return try {
+                val a = JSONArray(json)
+                (0 until a.length()).mapNotNull { i -> a.optJSONObject(i)?.let { fromJsonObject(it) } }
+            } catch (e: Exception) {
+                emptyList()
             }
         }
     }

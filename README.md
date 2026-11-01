@@ -60,6 +60,40 @@ A SIM-based auto dialer with a built-in CRM, live agent monitoring and reports, 
 - **Collections:** amount due, due date, Promise-to-Pay date and amount, and PTP totals on the dashboard.
 - **Support:** tickets with priority, status and assignee, linked to the customer.
 
+### Incoming & missed calls
+- The Android app tracks calls the agent *receives*. The customer's profile pops up on screen while the phone rings: name, status, last result, owner, amount due.
+- **Missed calls** create a "call back" follow-up straight away, move the lead to the top of the queue, and can send an automatic "sorry we missed you" WhatsApp.
+- Callers who are not in the CRM yet become a new lead automatically.
+- **Answered incoming calls** open the call-outcome form, just like outgoing calls.
+- The call log shows incoming and outgoing calls with a filter for each. The dashboard shows missed calls and how many were called back.
+
+### Direct lead sources (no Zapier)
+- **Facebook / Instagram Lead Ads:** Meta webhook with Graph API lookup, signature check, and duplicate protection.
+- **Google Ads lead forms:** webhook with a key.
+- **IndiaMART:** push webhook, plus an automatic pull every 10 minutes using the CRM key.
+- **JustDial** push.
+- **Website / landing-page forms**, with ready-to-paste HTML.
+- Every source can place its leads in a campaign, share them round robin between agents, bump the priority of a repeat enquiry, and send a test lead.
+
+### Automatic WhatsApp / SMS
+- **Providers:** WhatsApp Cloud API (Meta), MSG91 (DLT Flow), or any WhatsApp/SMS provider with an HTTP API (Interakt, AiSensy, Gupshup, Wati, Fast2SMS…).
+- **Automation rules:** send when a call outcome is saved (for example "Interested" → brochure), after a missed call, or when a new lead arrives. Optional delay, per-campaign filter, and template parameters.
+- A message log shows the status of every message, with retry.
+
+### AI call analysis
+- **Speech to text:** each call recording is turned into text using Sarvam AI (Hindi/Hinglish and Indian languages), Deepgram or OpenAI Whisper.
+- **Claude** then gives each call:
+  - a 2–3 line summary,
+  - the customer's mood and intent,
+  - a quality score, script-adherence score and politeness score,
+  - coaching tips, red flags, and the next step.
+- Results appear in the call log (score and mood), the lead profile and Reports → Call quality.
+- In demo mode, sample analyses are generated so you can show the feature.
+
+### Lead pipeline (Kanban)
+- Drag leads between status columns. Each column shows its count and total deal value or amount due.
+- Filter by campaign, agent or search, and call straight from a card. On mobile, a "Move to" menu replaces drag and drop.
+
 ### Reports (all exportable to CSV)
 - Dashboard: today compared with yesterday, calls by hour, outcomes, top agents, lead pipeline.
 - Agent performance: calls, connect %, talk time, average talk time, conversions, login and break time, productivity %.
@@ -72,7 +106,7 @@ A SIM-based auto dialer with a built-in CRM, live agent monitoring and reports, 
 - **White-label.** Change `BRAND_NAME`, the logo (`public/img/logo.svg`), and the Android app name, package and default server URL.
 - **Integrations.**
   - A REST lead-capture API with an API key, for website forms, Facebook lead ads through Zapier, IndiaMART, etc.
-  - Signed webhooks for `call.ended`, `call.disposed`, `lead.created` and `lead.status_changed`.
+  - Signed webhooks for `call.ended`, `call.disposed`, `call.inbound`, `call.missed`, `lead.created` and `lead.status_changed`.
 - **Security.**
   - Logins are limited to prevent password guessing.
   - Roles: super admin, admin, manager, agent.

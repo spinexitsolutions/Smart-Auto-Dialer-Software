@@ -98,7 +98,15 @@ router.get('/dashboard', h((req, res) => {
   const collections = db.get(
     `SELECT COALESCE(SUM(amount_due),0) AS due, COALESCE(SUM(CASE WHEN ptp_date IS NOT NULL THEN ptp_amount ELSE 0 END),0) AS ptp,
        COUNT(CASE WHEN ptp_date IS NOT NULL THEN 1 END) AS ptp_count FROM leads WHERE company_id = ? AND amount_due > 0`, [cidv]);
-  res.json({ today, yesterday, hourly, leadsByStatus, dispositions, topAgents, followups, leadsToday, openTickets, collections, target: s.daily_call_target });
+  const inbound = db.get(
+    `SELECT COUNT(*) AS total, COALESCE(SUM(CASE WHEN c.status = 'missed' THEN 1 ELSE 0 END),0) AS missed,
+       COALESCE(SUM(CASE WHEN c.status = 'missed' AND EXISTS (SELECT 1 FROM calls o WHERE o.lead_id = c.lead_id AND o.direction = 'outbound' AND o.started_at > c.started_at) THEN 1 ELSE 0 END),0) AS called_back
+     FROM calls c WHERE c.company_id = $cid AND c.direction = 'inbound' AND c.started_at >= $start ${af.sql}`, { cid: cidv, start, ...af.p });
+  const quality = db.get(
+    `SELECT COUNT(*) AS analysed, ROUND(AVG(a.quality_score)) AS avg_score,
+       COALESCE(SUM(CASE WHEN a.sentiment = 'negative' THEN 1 ELSE 0 END),0) AS negative
+     FROM call_ai a JOIN calls c ON c.id = a.call_id WHERE a.company_id = $cid AND a.status = 'done' AND c.started_at >= $start ${af.sql}`, { cid: cidv, start, ...af.p });
+  res.json({ today, yesterday, hourly, leadsByStatus, dispositions, topAgents, followups, leadsToday, openTickets, collections, inbound, quality, target: s.daily_call_target });
 }));
 
 router.get('/agents', requireRole('manager'), h((req, res) => {
@@ -217,6 +225,22 @@ router.get('/attendance', requireRole('manager'), h((req, res) => {
     Object.assign(row, b);
   }
   out(req, res, 'attendance', rows, ['day', 'name', 'first_login', 'last_logout', 'login_sec', 'sessions', 'breaks', 'break_sec', 'reasons']);
+}));
+
+/** AI call quality per agent. */
+router.get('/quality', h((req, res) => {
+  const r = range(req);
+  const af = agentFilter(req); const cf = campaignFilter(req);
+  const rows = db.all(
+    `SELECT u.id, u.name, COUNT(a.call_id) AS analysed, ROUND(AVG(a.quality_score)) AS avg_score, ROUND(AVG(a.script_score)) AS avg_script,
+       SUM(CASE WHEN a.sentiment = 'positive' THEN 1 ELSE 0 END) AS positive, SUM(CASE WHEN a.sentiment = 'neutral' THEN 1 ELSE 0 END) AS neutral,
+       SUM(CASE WHEN a.sentiment = 'negative' THEN 1 ELSE 0 END) AS negative,
+       SUM(CASE WHEN a.data LIKE '%"red_flags":["%' THEN 1 ELSE 0 END) AS flagged
+     FROM call_ai a JOIN calls c ON c.id = a.call_id JOIN users u ON u.id = c.user_id
+     WHERE a.company_id = $cid AND a.status = 'done' AND c.started_at >= $start AND c.started_at < $end ${af.sql} ${cf.sql}
+     GROUP BY u.id ORDER BY avg_score DESC`,
+    { cid: req.user.company_id, start: r.start, end: r.end, ...af.p, ...cf.p });
+  out(req, res, 'call-quality', rows, ['name', 'analysed', 'avg_score', 'avg_script', 'positive', 'neutral', 'negative', 'flagged']);
 }));
 
 /** Lead funnel / source performance. */

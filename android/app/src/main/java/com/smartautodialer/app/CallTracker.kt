@@ -85,14 +85,21 @@ object CallTracker {
         emit(buildEvent(call, STATE_ENDED, endedAt = now, durationSec = 0, connected = false, error = error))
     }
 
-    /** Fed by [CallStateService] with TelephonyManager.CALL_STATE_* values. */
+    /**
+     * Fed by [CallStateService] with TelephonyManager.CALL_STATE_* values (before
+     * [IncomingCallTracker] sees the same state).
+     */
     fun onTelephonyState(context: Context, state: Int) {
         val app = context.applicationContext
         val prefs = Prefs.get(app)
         val call = prefs.activeCall ?: return
 
         when (state) {
-            TelephonyManager.CALL_STATE_OFFHOOK -> if (call.state == STATE_DIALING) {
+            // OFFHOOK while an incoming call rings = the agent answered that call, not our
+            // dialed call connecting; keep waiting (the dial watchdog still applies).
+            TelephonyManager.CALL_STATE_OFFHOOK -> if (call.state == STATE_DIALING &&
+                !IncomingCallTracker.hasRingingCall(app)
+            ) {
                 cancelWatchdog()
                 val updated = call.copy(state = STATE_OFFHOOK, offhookAt = System.currentTimeMillis())
                 prefs.activeCall = updated
@@ -109,7 +116,7 @@ object CallTracker {
                 STATE_ENDING -> startFinalize(app, call)
             }
 
-            // RINGING = incoming call; not related to the dialed call.
+            // RINGING = incoming (or call-waiting) call; handled by IncomingCallTracker.
             else -> Unit
         }
     }

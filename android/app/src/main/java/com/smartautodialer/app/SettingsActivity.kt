@@ -44,6 +44,8 @@ class SettingsActivity : AppCompatActivity() {
         // Calls
         binding.autoReturnSwitch.isChecked = prefs.autoReturn
         binding.autoReturnSwitch.setOnCheckedChangeListener { _, checked -> prefs.autoReturn = checked }
+        binding.incomingTrackingSwitch.isChecked = prefs.incomingTracking
+        binding.incomingTrackingSwitch.setOnCheckedChangeListener { _, checked -> prefs.incomingTracking = checked }
         binding.overlayButton.setOnClickListener { openOverlaySettings() }
 
         // Display
@@ -76,6 +78,7 @@ class SettingsActivity : AppCompatActivity() {
     override fun onResume() {
         super.onResume()
         binding.serverUrlText.text = prefs.serverUrl
+        binding.incomingTrackingSwitch.isChecked = prefs.incomingTracking
         val overlayAllowed = Settings.canDrawOverlays(this)
         binding.overlayStatus.setText(
             if (overlayAllowed) R.string.settings_overlay_granted else R.string.settings_overlay_denied

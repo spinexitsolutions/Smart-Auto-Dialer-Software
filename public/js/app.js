@@ -1,16 +1,16 @@
 import {
-  state, bus, api, post, logout, esc, toast, clearPage, initials, agentBadge, native, $, $$, loadRefs, isManager,
+  state, bus, api, post, logout, esc, toast, clearPage, initials, agentBadge, native, $, $$, loadRefs, isManager, STATUS_LABEL,
 } from './core.js';
 
 const NAV = {
   agent: [
-    ['agent', '<i class="i i-phone-call"></i>', 'Dialer'], ['dashboard', '<i class="i i-dashboard"></i>', 'My Performance'], ['leads', '<i class="i i-users"></i>', 'My Leads'], ['followups', '<i class="i i-alarm"></i>', 'Follow-ups'],
+    ['agent', '<i class="i i-phone-call"></i>', 'Dialer'], ['dashboard', '<i class="i i-dashboard"></i>', 'My Performance'], ['leads', '<i class="i i-users"></i>', 'My Leads'], ['pipeline', '<i class="i i-kanban"></i>', 'Pipeline'], ['followups', '<i class="i i-alarm"></i>', 'Follow-ups'],
     ['calls', '<i class="i i-list"></i>', 'My Calls'], ['tickets', '<i class="i i-ticket"></i>', 'Tickets'],
   ],
   manager: [
     ['dashboard', '<i class="i i-dashboard"></i>', 'Dashboard'], ['monitor', '<i class="i i-radar"></i>', 'Live Monitor'], ['agent', '<i class="i i-phone-call"></i>', 'Dialer'], '|CRM',
-    ['leads', '<i class="i i-users"></i>', 'Leads'], ['campaigns', '<i class="i i-target"></i>', 'Campaigns'], ['followups', '<i class="i i-alarm"></i>', 'Follow-ups'], ['calls', '<i class="i i-list"></i>', 'Call Logs'], ['tickets', '<i class="i i-ticket"></i>', 'Tickets'],
-    '|Manage', ['reports', '<i class="i i-trending-up"></i>', 'Reports'], ['team', '<i class="i i-user-cog"></i>', 'Team'], ['settings', '<i class="i i-settings"></i>', 'Settings'],
+    ['leads', '<i class="i i-users"></i>', 'Leads'], ['pipeline', '<i class="i i-kanban"></i>', 'Pipeline'], ['campaigns', '<i class="i i-target"></i>', 'Campaigns'], ['followups', '<i class="i i-alarm"></i>', 'Follow-ups'], ['calls', '<i class="i i-list"></i>', 'Call Logs'], ['tickets', '<i class="i i-ticket"></i>', 'Tickets'],
+    '|Manage', ['reports', '<i class="i i-trending-up"></i>', 'Reports'], ['team', '<i class="i i-user-cog"></i>', 'Team'], ['integrations', '<i class="i i-plug"></i>', 'Integrations'], ['settings', '<i class="i i-settings"></i>', 'Settings'],
   ],
   superadmin: [['super', '<i class="i i-building"></i>', 'Clients & Licences']],
 };
@@ -21,6 +21,8 @@ const PAGES = {
   agent: ['Dialer', () => import('./pages/agent.js')],
   monitor: ['Live Monitor', () => import('./pages/monitor.js'), 'manager'],
   leads: ['Leads', () => import('./pages/leads.js')],
+  pipeline: ['Pipeline', () => import('./pages/pipeline.js')],
+  integrations: ['Integrations', () => import('./pages/integrations.js'), 'manager'],
   campaigns: ['Campaigns', () => import('./pages/campaigns.js'), 'manager'],
   followups: ['Follow-ups', () => import('./pages/followups.js')],
   calls: ['Call Logs', () => import('./pages/calls.js')],
@@ -103,6 +105,8 @@ function connectSocket() {
   state.socket = socket;
   socket.on('connect', () => {
     bus.emit('socket:connect');
+    flushNativeQueue();
+    native.call('flushEvents');
     updateConn(true);
     if (native.available()) socket.emit('device:info', { sims: native.sims(), device: native.device() });
   });
@@ -126,18 +130,81 @@ function connectSocket() {
     if (!location.hash.startsWith('#/agent')) location.hash = '#/agent';
   });
   socket.on('call:hangup', () => native.call('endCall'));
+  socket.on('incoming:ring', (d) => showIncoming(d));
+  socket.on('incoming:end', (d) => { if (d.answered) { hideIncoming(); location.hash = '#/agent'; } else if (!incomingMissedShown) hideIncoming(); });
+  socket.on('incoming:missed', (d) => showMissed(d));
 }
 
-// Called by the Android app: window.SADNative.onCallState(jsonString)
+// ----------------------------------------------------------------- incoming call pop-up
+let incomingEl = null;
+let incomingMissedShown = false;
+let incomingTimer = null;
+function incomingBox() {
+  if (!incomingEl) {
+    incomingEl = document.createElement('div');
+    incomingEl.className = 'incoming-pop';
+    document.body.appendChild(incomingEl);
+  }
+  clearTimeout(incomingTimer);
+  return incomingEl;
+}
+function hideIncoming() { incomingEl?.remove(); incomingEl = null; incomingMissedShown = false; }
+function leadDetails(l) {
+  if (!l) return '<div class="muted">New number — not in your CRM yet. A lead will be created automatically.</div>';
+  const rows = [
+    ['Status', esc(STATUS_LABEL[l.status] || l.status)], ['Last result', esc(l.last_disposition || '—')], ['Owner', esc(l.owner || '—')], ['Campaign', esc(l.campaign || '—')],
+    l.amount_due ? ['Amount due', esc(l.amount_due)] : null, l.city ? ['City', esc(l.city)] : null,
+  ].filter(Boolean);
+  return `<dl class="kv">${rows.map(([k, v]) => `<dt>${k}</dt><dd>${v}</dd>`).join('')}</dl>`;
+}
+function showIncoming(d) {
+  incomingMissedShown = false;
+  const el = incomingBox();
+  const l = d.lead;
+  el.innerHTML = `<div class="incoming-head ring-bg"><i class="i i-phone-incoming"></i> ${d.state === 'answered' ? 'On incoming call' : 'Incoming call'}<button class="btn ghost icon sm" data-x><i class="i i-x"></i></button></div>
+    <div class="incoming-body"><div class="name">${esc(l?.name || (d.phone ? 'Unknown caller' : 'Caller'))}</div><div class="mono muted">${esc(l?.phone || d.phone || 'Number shown after the call')}</div>
+    ${leadDetails(l)}
+    ${l ? `<button class="btn sm primary" data-open="${l.id}">Open full profile</button>` : ''}</div>`;
+  el.querySelector('[data-x]').onclick = hideIncoming;
+  const ob = el.querySelector('[data-open]');
+  if (ob) ob.onclick = async () => { const { openLead } = await import('./pages/lead.js'); openLead(Number(ob.dataset.open)); };
+}
+function showMissed(d) {
+  incomingMissedShown = true;
+  const el = incomingBox();
+  const l = d.lead;
+  el.innerHTML = `<div class="incoming-head missed"><i class="i i-phone-missed"></i> Missed call<button class="btn ghost icon sm" data-x><i class="i i-x"></i></button></div>
+    <div class="incoming-body"><div class="name">${esc(l?.name || 'Unknown caller')}</div><div class="mono muted">${esc(d.phone)}</div>
+    <div class="muted">A call-back follow-up has been added.</div>
+    ${l ? `<button class="btn sm green" data-cb="${l.id}"><i class="i i-phone"></i> Call back now</button>` : ''}</div>`;
+  el.querySelector('[data-x]').onclick = hideIncoming;
+  const cb = el.querySelector('[data-cb]');
+  if (cb) cb.onclick = () => { state.socket?.emit('dial', { leadId: Number(cb.dataset.cb) }, (r) => { if (r && !r.ok && r.error) toast(r.error, 'error'); }); hideIncoming(); location.hash = '#/agent'; };
+  incomingTimer = setTimeout(hideIncoming, 60000);
+}
+
+// Called by the Android app with JSON strings. Events are buffered until the server connection is up.
+const nativeQueue = [];
+function sendNative(evt, data) {
+  if (state.socket?.connected) state.socket.emit(evt, data);
+  else nativeQueue.push([evt, data]);
+}
+function flushNativeQueue() { while (nativeQueue.length && state.socket?.connected) state.socket.emit(...nativeQueue.shift()); }
+const seenIncoming = new Set();
 window.SADNative = {
   onCallState(json) {
     let d; try { d = typeof json === 'string' ? JSON.parse(json) : json; } catch { return; }
     bus.emit('native:call', d);
-    state.socket?.emit('call:state', { callId: d.callId, state: d.state, durationSec: d.durationSec, connected: d.connected });
+    sendNative('call:state', { callId: d.callId, state: d.state, durationSec: d.durationSec, connected: d.connected });
+  },
+  onIncomingCall(json) {
+    let d; try { d = typeof json === 'string' ? JSON.parse(json) : json; } catch { return; }
+    const key = `${d.id}|${d.state}|${d.phone}`;
+    if (seenIncoming.has(key)) return; // at-least-once delivery from the app
+    seenIncoming.add(key);
+    sendNative('call:incoming', d);
   },
 };
-// Ask the Android app to deliver any call events queued while the page was not loaded.
-native.call('flushEvents');
 
 function updateConn(ok) {
   const el = $('#connDot');

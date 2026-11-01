@@ -26,7 +26,7 @@
     <string name="perm_phone_state">Phone state</string>
     <string name="perm_phone_state_reason">Detects when a call starts and ends, and lists your SIM cards.</string>
     <string name="perm_call_log">Call log</string>
-    <string name="perm_call_log_reason">Reads the duration of calls placed by the dialer so the server knows whether the customer answered.</string>
+    <string name="perm_call_log_reason">Reads the duration of calls placed by the dialer so the server knows whether the customer answered, and the number of incoming and missed calls.</string>
     <string name="perm_phone_numbers">Phone numbers</string>
     <string name="perm_phone_numbers_reason">Shows the number of each SIM so you can choose which one to call from.</string>
     <string name="perm_answer_calls">Manage calls</string>
@@ -60,6 +60,8 @@
     <string name="settings_calls_section">Calls</string>
     <string name="settings_auto_return">Return to the app after each call</string>
     <string name="settings_auto_return_hint">On Android 10 and newer, allow \"Display over other apps\" for this to work reliably. Otherwise a notification is shown that brings you back with one tap.</string>
+    <string name="settings_incoming_tracking">Track incoming calls</string>
+    <string name="settings_incoming_tracking_hint">Reports calls you receive to the panel (customer pop-up, missed-call log). The caller\'s number needs the Call log permission.</string>
     <string name="settings_overlay_button">Allow \"Display over other apps\"</string>
     <string name="settings_overlay_granted">Display over other apps: allowed</string>
     <string name="settings_overlay_denied">Display over other apps: not allowed</string>
@@ -83,12 +85,15 @@
     <string name="channel_service">Dialer status</string>
     <string name="channel_service_desc">Shown while the dialer is connected and tracking calls</string>
     <string name="channel_alerts">Call alerts</string>
-    <string name="channel_alerts_desc">Shortcut back to the app after a call ends</string>
+    <string name="channel_alerts_desc">Incoming-call alerts and a shortcut back to the app after a call ends</string>
     <string name="notif_connected_title">Dialer connected</string>
     <string name="notif_connected_text">Tracking calls placed from the panel</string>
     <string name="notif_action_settings">Settings</string>
     <string name="notif_call_ended_title">Call ended</string>
     <string name="notif_call_ended_text">Tap to return to the dialer</string>
+    <string name="notif_incoming_title">Incoming call: %1$s</string>
+    <string name="notif_incoming_title_unknown">Incoming call</string>
+    <string name="notif_incoming_text">Tap to open the customer in the panel</string>
 
     <!-- Shortcuts -->
     <string name="shortcut_settings">Dialer settings</string>

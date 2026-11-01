@@ -23,7 +23,8 @@ import java.lang.ref.WeakReference
  * Methods are invoked on a WebView background thread ("JavaBridge"); anything touching
  * UI or [CallTracker] is posted to the main thread. Getters return synchronously.
  *
- * Call-state events flow the other way: native -> `window.SADNative.onCallState(jsonString)`.
+ * Call-state events flow the other way: native -> `window.SADNative.onCallState(jsonString)`
+ * (calls placed by the panel) and `window.SADNative.onIncomingCall(jsonString)` (calls received).
  */
 class DialerBridge(activity: MainActivity) {
 
@@ -111,6 +112,15 @@ class DialerBridge(activity: MainActivity) {
         prefs.autoReturn = enabled
     }
 
+    /** Report calls received on the phone via `window.SADNative.onIncomingCall` (default on). */
+    @JavascriptInterface
+    fun setIncomingTracking(enabled: Boolean) {
+        prefs.incomingTracking = enabled
+    }
+
+    @JavascriptInterface
+    fun isIncomingTrackingEnabled(): Boolean = prefs.incomingTracking
+
     // ---------------------------------------------------------------- extras (optional for the web)
 
     /** Re-delivers queued call events; call right after defining `window.SADNative`. */
@@ -123,6 +133,10 @@ class DialerBridge(activity: MainActivity) {
         // Prefs reads are thread-safe; build on this thread.
         return CallTracker.currentCallJson(app)
     }
+
+    /** The received call currently ringing / in progress (same shape as an onIncomingCall event) or `null`. */
+    @JavascriptInterface
+    fun getIncomingCall(): String = IncomingCallTracker.currentCallJson(app)
 
     /** `{"CALL_PHONE":true,"READ_CALL_LOG":false,...}` */
     @JavascriptInterface

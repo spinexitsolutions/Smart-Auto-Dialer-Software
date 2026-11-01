@@ -3,8 +3,9 @@ import {
   state, get, post, put, del, esc, html, modal, toast, toastErr, options, statusBadge, fmtDate, dur, money, ago, authUrl,
   isManager, loadRefs, localInput, openWhatsApp, openSms, confirmBox, STATUS_LABEL,
 } from '../core.js';
+import { aiCell, bindAiLinks } from './ai.js';
 
-const ICON = { call: '<i class="i i-phone"></i>', disposition: '<i class="i i-tag"></i>', note: '<i class="i i-note"></i>', status: '<i class="i i-refresh"></i>', followup: '<i class="i i-alarm"></i>', created: '<i class="i i-sparkles"></i>', assign: '<i class="i i-user"></i>', whatsapp: '<i class="i i-message"></i>', sms: '<i class="i i-mail"></i>', email: '<i class="i i-mail"></i>', ticket: '<i class="i i-ticket"></i>', meeting: '<i class="i i-calendar"></i>' };
+const ICON = { ai: '<i class="i i-sparkles"></i>', call: '<i class="i i-phone"></i>', disposition: '<i class="i i-tag"></i>', note: '<i class="i i-note"></i>', status: '<i class="i i-refresh"></i>', followup: '<i class="i i-alarm"></i>', created: '<i class="i i-sparkles"></i>', assign: '<i class="i i-user"></i>', whatsapp: '<i class="i i-message"></i>', sms: '<i class="i i-mail"></i>', email: '<i class="i i-mail"></i>', ticket: '<i class="i i-ticket"></i>', meeting: '<i class="i i-calendar"></i>' };
 
 export async function openLead(id, { onChange } = {}) {
   await loadRefs();
@@ -80,10 +81,10 @@ export async function openLead(id, { onChange } = {}) {
 
         <div class="card">
           <div class="card-head"><h3>Calls (${l.calls.length})</h3></div>
-          ${l.calls.length ? `<div class="table-wrap"><table><thead><tr><th>When</th><th>Agent</th><th>Result</th><th>Duration</th><th>Recording</th></tr></thead><tbody>
+          ${l.calls.length ? `<div class="table-wrap"><table><thead><tr><th>When</th><th>Agent</th><th>Result</th><th>Duration</th><th>AI</th><th>Recording</th></tr></thead><tbody>
             ${l.calls.map((c) => `<tr><td class="nowrap">${fmtDate(c.started_at)}</td><td>${esc(c.agent_name || '—')}</td>
-              <td>${c.connected ? '<span class="badge green">Connected</span>' : '<span class="badge">Not connected</span>'} ${esc(c.disposition || '')}${c.notes ? `<div class="muted" style="font-size:12px">${esc(c.notes)}</div>` : ''}</td>
-              <td>${dur(c.duration)}</td><td>${c.recording_path ? `<audio controls preload="none" src="${authUrl(`/calls/${c.id}/recording`)}"></audio>` : '<span class="faint">—</span>'}</td></tr>`).join('')}
+              <td>${c.connected ? '<span class="badge green">Connected</span>' : '<span class="badge">Not connected</span>'} ${esc(c.disposition || '')}${c.ai_summary ? `<div style="font-size:12px;color:var(--violet)"><i class="i i-sparkles"></i> ${esc(c.ai_summary)}</div>` : ''}${c.notes ? `<div class="muted" style="font-size:12px">${esc(c.notes)}</div>` : ''}</td>
+              <td>${dur(c.duration)}</td><td>${aiCell(c)}</td><td>${c.recording_path ? `<audio controls preload="none" src="${authUrl(`/calls/${c.id}/recording`)}"></audio>` : '<span class="faint">—</span>'}</td></tr>`).join('')}
           </tbody></table></div>` : '<div class="empty">No calls yet</div>'}
         </div>
 
@@ -107,6 +108,7 @@ export async function openLead(id, { onChange } = {}) {
         </div>
       </div>`;
 
+    bindAiLinks(dr, load);
     const $a = (a) => dr.querySelector(`[data-a="${a}"]`);
     $a('close').onclick = close;
     $a('call').onclick = () => {

@@ -19,10 +19,12 @@ object Notifications {
     const val CHANNEL_ALERTS = "dialer_alerts"
     const val ID_SERVICE = 1001
     const val ID_RETURN_TO_APP = 1002
+    const val ID_INCOMING_CALL = 1003
 
     private const val RC_OPEN_MAIN = 10
     private const val RC_OPEN_SETTINGS = 11
     private const val RC_RETURN = 12
+    private const val RC_INCOMING = 13
 
     fun createChannels(context: Context) {
         if (Build.VERSION.SDK_INT < Build.VERSION_CODES.O) return
@@ -93,6 +95,42 @@ object Notifications {
         } catch (e: SecurityException) {
             // Notification permission revoked meanwhile - nothing else to do.
         }
+    }
+
+    /**
+     * Heads-up "Incoming call: <number>" that opens the panel, shown while the phone rings and
+     * the panel is not in front. Deliberately no full-screen intent: the system's incoming-call
+     * UI stays on top; the agent taps this when they want to see the customer.
+     */
+    @SuppressLint("MissingPermission")
+    fun showIncomingCall(context: Context, phone: String) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.TIRAMISU &&
+            !Permissions.has(context, Manifest.permission.POST_NOTIFICATIONS)
+        ) return
+        val nmc = NotificationManagerCompat.from(context)
+        if (!nmc.areNotificationsEnabled()) return
+        val title = if (phone.isBlank()) context.getString(R.string.notif_incoming_title_unknown)
+        else context.getString(R.string.notif_incoming_title, phone)
+        val notification = NotificationCompat.Builder(context, CHANNEL_ALERTS)
+            .setSmallIcon(R.drawable.ic_stat_dialer)
+            .setContentTitle(title)
+            .setContentText(context.getString(R.string.notif_incoming_text))
+            .setPriority(NotificationCompat.PRIORITY_HIGH)
+            .setCategory(NotificationCompat.CATEGORY_CALL)
+            .setOnlyAlertOnce(true)
+            .setAutoCancel(true)
+            .setTimeoutAfter(5 * 60_000L)
+            .setContentIntent(mainActivityIntent(context, RC_INCOMING))
+            .build()
+        try {
+            nmc.notify(ID_INCOMING_CALL, notification)
+        } catch (e: SecurityException) {
+            // Notification permission revoked meanwhile - nothing else to do.
+        }
+    }
+
+    fun cancelIncomingCall(context: Context) {
+        NotificationManagerCompat.from(context).cancel(ID_INCOMING_CALL)
     }
 
     fun cancelReturnToApp(context: Context) {
